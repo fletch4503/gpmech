@@ -81,7 +81,7 @@ def generate_test_data():
     spare_parts = [
         SparePart("Фильтр гидравлический", 24, "Экскаватор CAT 320", 4, 20, 7),
         SparePart("Масляный фильтр", 12, "Бульдозер D6", 2, 15, 5),
-        SparePart("Топливный насос", 36, "Самосвал Volvo FH16", 1, 8, 14),
+        SparePart("Топливный насос", 36, "Самосвал Volvo FH16", 1, 10, 14),
         SparePart("Гидроцилиндр", 48, "Кран Liebherr LTM", 6, 12, 21),
         SparePart("Аккумулятор", 24, "Генератор Cummins", 2, 10, 3),
         SparePart("Ремень генератора", 18, "Компрессор Atlas Copco", 1, 25, 4),
@@ -89,13 +89,14 @@ def generate_test_data():
         SparePart("Тормозные колодки", 12, "Самосвал Volvo FH16", 8, 40, 6),
         SparePart("Цепь привода", 36, "Бульдозер D6", 1, 5, 18),
         SparePart("Клапан давления", 30, "Кран Liebherr LTM", 2, 8, 12),
+        SparePart("Шина", 24, "Самосвал Volvo FH16", 6, 18, 14),
     ]
 
     # Записи о заменах
     replacement_records = []
     base_date = datetime.now() - timedelta(days=365)
 
-    for i in range(20):
+    for i in range(30):
         equipment = random.choice(equipment_list)
         # Выбираем запчасть, подходящую для этого оборудования
         suitable_parts = [

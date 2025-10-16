@@ -574,6 +574,10 @@ elif page == "Визуализации":
             st.session_state.spare_parts_df,
             x="useful_life_months",
             title="Распределение сроков полезного использования запчастей",
+            labels={
+                "useful_life_months": "Срок службы (месяцы)",
+                "count": "Количество запчастей",
+            },
         )
         st.plotly_chart(fig, config=dict(displayModeBar=False))
 
@@ -581,5 +585,9 @@ elif page == "Визуализации":
             st.session_state.spare_parts_df,
             x="procurement_time_days",
             title="Распределение сроков закупки запчастей",
+            labels={
+                "count": "Количество запчастей",
+                "procurement_time_days": "Срок закупки (Дни)",
+            },
         )
         st.plotly_chart(fig2, config=dict(displayModeBar=False))
