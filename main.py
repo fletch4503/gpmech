@@ -2,11 +2,11 @@ import streamlit as st
 import pandas as pd
 from models import generate_test_data, create_dataframes
 from utils import (
-    calculate_wear_level,
-    calculate_procurement_deadline,
+    # calculate_wear_level,
+    # calculate_procurement_deadline,
     get_next_procurement_dates,
     get_wear_color,
-    format_date,
+    # format_date,
     get_replacement_type_display,
     calculate_total_parts_needed,
 )
@@ -364,6 +364,7 @@ elif page == "Анализ износа":
                 wear_summary,
                 values="count",
                 names="wear_level",
+                labels={"wear_level": "Уровень износа"},
                 title="Распределение по степени износа",
                 color="wear_level",
                 color_discrete_map={
@@ -391,6 +392,7 @@ elif page == "Анализ износа":
                 "wear_level": "Степень износа",
                 "remaining_pct": "Остаток (%)",
                 "procurement_deadline": "Срок закупки",
+                "procurement_time_days": "Время на закупку, дн.",
             }
         )
         styled_df = wear_display_df.style.map(
@@ -418,6 +420,7 @@ elif page == "Анализ износа":
                 "wear_level": "Степень износа",
                 "remaining_pct": "Остаток (%)",
                 "procurement_deadline": "Срок закупки",
+                "procurement_time_days": "Время на закупку, дн.",
             }
         )
         st.dataframe(filtered_display_df, width="stretch")
@@ -509,6 +512,10 @@ elif page == "План закупок":
                     color="wear_level",
                     size="needed",
                     title="План закупок по датам",
+                    labels={
+                        "date": "Дата закупки",
+                        "needed": "Необходимо, шт.",
+                    },
                     color_discrete_map={
                         "green": "#28a745",
                         "yellow": "#ffc107",
@@ -543,6 +550,10 @@ elif page == "Визуализации":
             x="parent_equipment",
             y="count",
             title="Количество запчастей по типам оборудования",
+            labels={
+                "parent_equipment": "Тип Оборудования",
+                "count": "Количество",
+            },
         )
         st.plotly_chart(fig, config=dict(displayModeBar=False))
 
@@ -563,6 +574,10 @@ elif page == "Визуализации":
                 x="month",
                 y="count",
                 title="Количество замен по месяцам",
+                labels={
+                    "month": "Месяц",
+                    "count": "Количество",
+                },
             )
             st.plotly_chart(fig, config=dict(displayModeBar=False))
         else:
@@ -573,10 +588,11 @@ elif page == "Визуализации":
         fig = px.histogram(
             st.session_state.spare_parts_df,
             x="useful_life_months",
+            # y="count",
             title="Распределение сроков полезного использования запчастей",
             labels={
-                "useful_life_months": "Срок службы (месяцы)",
                 "count": "Количество запчастей",
+                "useful_life_months": "Срок службы (месяцы)",
             },
         )
         st.plotly_chart(fig, config=dict(displayModeBar=False))
@@ -584,6 +600,7 @@ elif page == "Визуализации":
         fig2 = px.histogram(
             st.session_state.spare_parts_df,
             x="procurement_time_days",
+            # y="count",
             title="Распределение сроков закупки запчастей",
             labels={
                 "count": "Количество запчастей",

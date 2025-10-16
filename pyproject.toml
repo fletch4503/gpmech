@@ -3,6 +3,7 @@ dependencies = [
   "streamlit>=1.50.0",
   "pandas>=2.0.0",
   "plotly>=5.0.0",
+  "logly>=0.1.6",
 ]
 description = "Журнал запасных частей - система учета срока службы запчастей и планирования их замен"
 name = "gpmech"

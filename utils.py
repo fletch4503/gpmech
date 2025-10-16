@@ -1,8 +1,30 @@
 import pandas as pd
 from datetime import datetime, timedelta
-import streamlit as st
+from logly import logger
+from functools import wraps
+
+cust_color = {"INFO": "GREEN", "ERROR": "BRIGHT_RED"}
+
+logger.configure(
+    level="INFO",
+    json=False,
+    color=True,
+    level_colors=cust_color,
+    auto_sink=True,
+)
 
 
+def funcenter(func):  # Измеряем время на работу функций
+    @wraps(func)
+    def wrapper(*a, **kw):
+        result = func(*a, **kw)
+        logger.info(f"Вошли в метод {func.__name__}")
+        return result
+
+    return wrapper
+
+
+@funcenter
 def calculate_wear_level(replacement_date, useful_life_months):
     """
     Расчет степени износа запчасти
@@ -26,6 +48,7 @@ def calculate_wear_level(replacement_date, useful_life_months):
         return "red", max(0, remaining_percentage)
 
 
+@funcenter
 def calculate_procurement_deadline(
     replacement_date, useful_life_months, procurement_time_days
 ):
@@ -67,6 +90,7 @@ def get_wear_color(wear_level):
     return colors.get(wear_level, "#6c757d")
 
 
+@funcenter
 def format_date(date):
     """Форматирование даты для отображения"""
     if pd.isna(date):
@@ -74,6 +98,7 @@ def format_date(date):
     return date.strftime("%d.%m.%Y")
 
 
+@funcenter
 def get_replacement_type_display(replacement_type):
     """Получение читаемого названия типа замены"""
     types = {
@@ -84,6 +109,7 @@ def get_replacement_type_display(replacement_type):
     return types.get(replacement_type, replacement_type)
 
 
+@funcenter
 def calculate_total_parts_needed(equipment_df, spare_parts_df, replacements_df):
     """
     Расчет общего количества необходимых запчастей для всего парка
