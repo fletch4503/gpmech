@@ -169,164 +169,159 @@ elif page == "Справочники":
 
     with tab1:
         st.subheader("Оборудование")
-        col1, col2 = st.columns([3, 1])
+        # col1, col2 = st.columns([3, 1])
 
-        with col1:
-            equipment_display_df = st.session_state.equipment_df.rename(
-                columns={
-                    "name": "Наименование",
-                    "qty_in_fleet": "Количество в парке",
-                }
-            )
-            st.dataframe(equipment_display_df, width="content")
+        # with col1:
+        with st.expander("➕ Добавить оборудование"):
+            with st.form("add_equipment_form"):
+                name = st.text_input("Наименование")
+                qty_in_fleet = st.number_input(
+                    "Количество в парке", min_value=1, value=1
+                )
+                submitted = st.form_submit_button("Добавить")
+                if submitted and name:
+                    add_equipment(name, qty_in_fleet)
+                    st.success("Оборудование добавлено!")
+                    st.rerun()
 
-        with col2:
-            with st.expander("➕ Добавить оборудование"):
-                with st.form("add_equipment_form"):
-                    name = st.text_input("Наименование")
-                    qty_in_fleet = st.number_input(
-                        "Количество в парке", min_value=1, value=1
-                    )
-                    submitted = st.form_submit_button("Добавить")
-                    if submitted and name:
-                        add_equipment(name, qty_in_fleet)
-                        st.success("Оборудование добавлено!")
-                        st.rerun()
+        # with col2:
+        equipment_display_df = st.session_state.equipment_df.rename(
+            columns={
+                "name": "Наименование",
+                "qty_in_fleet": "Количество в парке",
+            }
+        )
+        st.dataframe(equipment_display_df, width="content")
 
     with tab2:
         st.subheader("Авторемонтные мастерские")
-        col1, col2 = st.columns([3, 1])
+        # col1, col2 = st.columns([3, 1])
+        # with col2:
+        with st.expander("➕ Добавить мастерскую"):
+            with st.form("add_workshop_form"):
+                name = st.text_input("Наименование")
+                address = st.text_input("Адрес")
+                submitted = st.form_submit_button("Добавить")
+                if submitted and name and address:
+                    add_workshop(name, address)
+                    st.success("Мастерская добавлена!")
+                    st.rerun()
 
-        with col1:
-            workshops_display_df = st.session_state.workshops_df.rename(
-                columns={
-                    "name": "Наименование",
-                    "address": "Адрес",
-                }
-            )
-            st.dataframe(workshops_display_df, width="content")
-
-        with col2:
-            with st.expander("➕ Добавить мастерскую"):
-                with st.form("add_workshop_form"):
-                    name = st.text_input("Наименование")
-                    address = st.text_input("Адрес")
-                    submitted = st.form_submit_button("Добавить")
-                    if submitted and name and address:
-                        add_workshop(name, address)
-                        st.success("Мастерская добавлена!")
-                        st.rerun()
+        # with col1:
+        workshops_display_df = st.session_state.workshops_df.rename(
+            columns={
+                "name": "Наименование",
+                "address": "Адрес",
+            }
+        )
+        st.dataframe(workshops_display_df, width="content")
 
     with tab3:
         st.subheader("Запчасти")
-        col1, col2 = st.columns([3, 1])
+        # col1, col2 = st.columns([3, 1])
+        # with col1:
+        # with col2:
+        with st.expander("➕ Добавить запчасть"):
+            with st.form("add_spare_part_form"):
+                name = st.text_input("Наименование")
+                useful_life_months = st.number_input(
+                    "Срок полезного использования (месяцы)", min_value=1, value=12
+                )
+                parent_equipment = st.selectbox(
+                    "Родительское оборудование",
+                    st.session_state.equipment_df["name"].tolist(),
+                )
+                qty_per_equipment = st.number_input(
+                    "Количество в единице оборудования", min_value=1, value=1
+                )
+                qty_in_stock = st.number_input(
+                    "Количество на складе", min_value=0, value=0
+                )
+                procurement_time_days = st.number_input(
+                    "Срок закупки (дни)", min_value=1, value=7
+                )
+                submitted = st.form_submit_button("Добавить")
+                if submitted and name:
+                    add_spare_part(
+                        name,
+                        useful_life_months,
+                        parent_equipment,
+                        qty_per_equipment,
+                        qty_in_stock,
+                        procurement_time_days,
+                    )
+                    st.success("Запчасть добавлена!")
+                    st.rerun()
 
-        with col1:
-            spare_parts_display_df = st.session_state.spare_parts_df.rename(
-                columns={
-                    "name": "Наименование",
-                    "useful_life_months": "Срок службы (месяцы)",
-                    "parent_equipment": "Оборудование",
-                    "qty_per_equipment": "Кол-во на единицу",
-                    "qty_in_stock": "На складе",
-                    "procurement_time_days": "Срок закупки (дни)",
-                }
-            )
-            st.dataframe(spare_parts_display_df, width="content")
-
-        with col2:
-            with st.expander("➕ Добавить запчасть"):
-                with st.form("add_spare_part_form"):
-                    name = st.text_input("Наименование")
-                    useful_life_months = st.number_input(
-                        "Срок полезного использования (месяцы)", min_value=1, value=12
-                    )
-                    parent_equipment = st.selectbox(
-                        "Родительское оборудование",
-                        st.session_state.equipment_df["name"].tolist(),
-                    )
-                    qty_per_equipment = st.number_input(
-                        "Количество в единице оборудования", min_value=1, value=1
-                    )
-                    qty_in_stock = st.number_input(
-                        "Количество на складе", min_value=0, value=0
-                    )
-                    procurement_time_days = st.number_input(
-                        "Срок закупки (дни)", min_value=1, value=7
-                    )
-                    submitted = st.form_submit_button("Добавить")
-                    if submitted and name:
-                        add_spare_part(
-                            name,
-                            useful_life_months,
-                            parent_equipment,
-                            qty_per_equipment,
-                            qty_in_stock,
-                            procurement_time_days,
-                        )
-                        st.success("Запчасть добавлена!")
-                        st.rerun()
+        spare_parts_display_df = st.session_state.spare_parts_df.rename(
+            columns={
+                "name": "Наименование",
+                "useful_life_months": "Срок службы (месяцы)",
+                "parent_equipment": "Оборудование",
+                "qty_per_equipment": "Кол-во на единицу",
+                "qty_in_stock": "На складе",
+                "procurement_time_days": "Срок закупки (дни)",
+            }
+        )
+        st.dataframe(spare_parts_display_df, width="content")
 
 # Учет замен
 elif page == "Учет замен":
     st.title("🔄 Учет замен запчастей")
 
-    col1, col2 = st.columns([3, 1])
+    # Форма добавления замены сразу после заголовка
+    with st.expander("➕ Добавить замену"):
+        with st.form("add_replacement_form"):
+            equipment_name = st.selectbox(
+                "Оборудование", st.session_state.equipment_df["name"].tolist()
+            )
+            # Фильтруем запчасти по выбранному оборудованию
+            suitable_parts = st.session_state.spare_parts_df[
+                st.session_state.spare_parts_df["parent_equipment"] == equipment_name
+            ]["name"].tolist()
+            spare_part_name = st.selectbox(
+                "Запчасть",
+                suitable_parts if suitable_parts else ["Нет подходящих запчастей"],
+            )
+            workshop_name = st.selectbox(
+                "Мастерская", st.session_state.workshops_df["name"].tolist()
+            )
+            replacement_date = st.date_input("Дата замены", datetime.now().date())
+            replacement_type = st.selectbox(
+                "Тип замены",
+                ["repair", "scheduled", "unscheduled"],
+                format_func=get_replacement_type_display,
+            )
+            notes = st.text_area("Примечания", height=100)
+            submitted = st.form_submit_button("Добавить")
+            if (
+                submitted
+                and equipment_name
+                and spare_part_name != "Нет подходящих запчастей"
+            ):
+                add_replacement(
+                    equipment_name,
+                    spare_part_name,
+                    workshop_name,
+                    pd.to_datetime(replacement_date),
+                    replacement_type,
+                    notes,
+                )
+                st.success("Замена добавлена!")
+                st.rerun()
 
-    with col1:
-        replacements_display_df = st.session_state.replacements_df.rename(
-            columns={
-                "equipment_name": "Оборудование",
-                "spare_part_name": "Запчасть",
-                "workshop_name": "Мастерская",
-                "replacement_date": "Дата замены",
-                "replacement_type": "Тип замены",
-                "notes": "Примечания",
-            }
-        )
-        st.dataframe(replacements_display_df, width="content")
-
-    with col2:
-        with st.expander("➕ Добавить замену"):
-            with st.form("add_replacement_form"):
-                equipment_name = st.selectbox(
-                    "Оборудование", st.session_state.equipment_df["name"].tolist()
-                )
-                # Фильтруем запчасти по выбранному оборудованию
-                suitable_parts = st.session_state.spare_parts_df[
-                    st.session_state.spare_parts_df["parent_equipment"]
-                    == equipment_name
-                ]["name"].tolist()
-                spare_part_name = st.selectbox(
-                    "Запчасть",
-                    suitable_parts if suitable_parts else ["Нет подходящих запчастей"],
-                )
-                workshop_name = st.selectbox(
-                    "Мастерская", st.session_state.workshops_df["name"].tolist()
-                )
-                replacement_date = st.date_input("Дата замены", datetime.now().date())
-                replacement_type = st.selectbox(
-                    "Тип замены",
-                    ["repair", "scheduled", "unscheduled"],
-                    format_func=get_replacement_type_display,
-                )
-                notes = st.text_area("Примечания", height=100)
-                submitted = st.form_submit_button("Добавить")
-                if (
-                    submitted
-                    and equipment_name
-                    and spare_part_name != "Нет подходящих запчастей"
-                ):
-                    add_replacement(
-                        equipment_name,
-                        spare_part_name,
-                        workshop_name,
-                        pd.to_datetime(replacement_date),
-                        replacement_type,
-                        notes,
-                    )
-                    st.success("Замена добавлена!")
-                    st.rerun()
+    # Таблица замен
+    replacements_display_df = st.session_state.replacements_df.rename(
+        columns={
+            "equipment_name": "Оборудование",
+            "spare_part_name": "Запчасть",
+            "workshop_name": "Мастерская",
+            "replacement_date": "Дата замены",
+            "replacement_type": "Тип замены",
+            "notes": "Примечания",
+        }
+    )
+    st.dataframe(replacements_display_df, width="content")
 
 # Анализ износа
 elif page == "Анализ износа":
@@ -342,46 +337,44 @@ elif page == "Анализ износа":
     if not wear_data.empty:
         # Группировка по степени износа
         wear_summary = wear_data.groupby("wear_level").size().reset_index(name="count")
-
-        col1, col2 = st.columns(2)
-
-        with col1:
-            st.subheader("Сводка по степени износа")
-            for _, row in wear_summary.iterrows():
-                color = get_wear_color(row["wear_level"])
-                if row["wear_level"] == "green":
-                    description = "осталось более 25% от срока полезной эксплуатации"
-                elif row["wear_level"] == "yellow":
-                    description = "осталось менее 25% от срока полезной эксплуатации"
-                elif row["wear_level"] == "red":
-                    description = "осталось менее 10% от срока полезной эксплуатации"
-                else:
-                    description = ""
-                st.markdown(
-                    f"""
-                <div style="background-color: {color}; padding: 10px; margin: 5px 0; border-radius: 5px; color: white; display: inline-block; width: auto;">
-                    <strong>{row['wear_level'].upper()}</strong>: {row['count']} запчастей ({description})
-                </div>
-                """,
-                    unsafe_allow_html=True,
-                )
-
-        with col2:
-            # Круговая диаграмма
-            fig = px.pie(
-                wear_summary,
-                values="count",
-                names="wear_level",
-                labels={"wear_level": "Уровень износа"},
-                title="Распределение по степени износа",
-                color="wear_level",
-                color_discrete_map={
-                    "green": "#28a745",
-                    "yellow": "#ffc107",
-                    "red": "#dc3545",
-                },
+        # col1, col2 = st.columns(2)
+        # with col1:
+        st.subheader("Сводка по степени износа")
+        for _, row in wear_summary.iterrows():
+            color = get_wear_color(row["wear_level"])
+            if row["wear_level"] == "green":
+                description = "осталось более 25% от срока полезной эксплуатации"
+            elif row["wear_level"] == "yellow":
+                description = "осталось менее 25% от срока полезной эксплуатации"
+            elif row["wear_level"] == "red":
+                description = "осталось менее 10% от срока полезной эксплуатации"
+            else:
+                description = ""
+            st.markdown(
+                f"""
+            <div style="background-color: {color}; padding: 10px; margin: 5px 0; border-radius: 5px; color: white; display: inline-block; width: auto;">
+                <strong>{row['wear_level'].upper()}</strong>: {row['count']} запчастей ({description})
+            </div>
+            """,
+                unsafe_allow_html=True,
             )
-            st.plotly_chart(fig, config=dict(displayModeBar=False))
+
+        # with col2:
+        # Круговая диаграмма
+        fig = px.pie(
+            wear_summary,
+            values="count",
+            names="wear_level",
+            labels={"wear_level": "Уровень износа"},
+            title="Распределение по степени износа",
+            color="wear_level",
+            color_discrete_map={
+                "green": "#28a745",
+                "yellow": "#ffc107",
+                "red": "#dc3545",
+            },
+        )
+        st.plotly_chart(fig, config=dict(displayModeBar=False))
 
         st.subheader("Детальный анализ")
 
