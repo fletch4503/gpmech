@@ -144,7 +144,7 @@ elif page == "Справочники":
         col1, col2 = st.columns([3, 1])
 
         with col1:
-            st.dataframe(st.session_state.equipment_df, use_container_width=True)
+            st.dataframe(st.session_state.equipment_df, width="stretch")
 
         with col2:
             with st.expander("➕ Добавить оборудование"):
@@ -164,7 +164,7 @@ elif page == "Справочники":
         col1, col2 = st.columns([3, 1])
 
         with col1:
-            st.dataframe(st.session_state.workshops_df, use_container_width=True)
+            st.dataframe(st.session_state.workshops_df, width="stretch")
 
         with col2:
             with st.expander("➕ Добавить мастерскую"):
@@ -182,7 +182,7 @@ elif page == "Справочники":
         col1, col2 = st.columns([3, 1])
 
         with col1:
-            st.dataframe(st.session_state.spare_parts_df, use_container_width=True)
+            st.dataframe(st.session_state.spare_parts_df, width="stretch")
 
         with col2:
             with st.expander("➕ Добавить запчасть"):
@@ -224,7 +224,7 @@ elif page == "Учет замен":
     col1, col2 = st.columns([3, 1])
 
     with col1:
-        st.dataframe(st.session_state.replacements_df, use_container_width=True)
+        st.dataframe(st.session_state.replacements_df, width="stretch")
 
     with col2:
         with st.expander("➕ Добавить замену"):
@@ -312,7 +312,7 @@ elif page == "Анализ износа":
                     "red": "#dc3545",
                 },
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, config=dict(displayModeBar=False))
 
         st.subheader("Детальный анализ")
 
@@ -321,8 +321,9 @@ elif page == "Анализ износа":
             color = get_wear_color(val)
             return f"background-color: {color}; color: white"
 
-        styled_df = wear_data.style.applymap(color_wear_level, subset=["wear_level"])
-        st.dataframe(styled_df, use_container_width=True)
+        # styled_df = wear_data.style.applymap(color_wear_level, subset=["wear_level"])
+        styled_df = wear_data.style.map(color_wear_level, subset=["wear_level"])
+        st.dataframe(styled_df, width="stretch")
 
         # Фильтр по оборудованию
         selected_equipment = st.selectbox(
@@ -335,7 +336,7 @@ elif page == "Анализ износа":
         else:
             filtered_data = wear_data
 
-        st.dataframe(filtered_data, use_container_width=True)
+        st.dataframe(filtered_data, width="stretch")
     else:
         st.info("Нет данных для анализа износа")
 
@@ -376,7 +377,7 @@ elif page == "План закупок":
                         "procurement_deadline",
                     ]
                 ],
-                use_container_width=True,
+                width="stretch",
             )
 
             # Группировка по датам
@@ -397,7 +398,7 @@ elif page == "План закупок":
             if procurement_plan:
                 plan_df = pd.DataFrame(procurement_plan).sort_values("date")
                 st.subheader("Календарный план закупок")
-                st.dataframe(plan_df, use_container_width=True)
+                st.dataframe(plan_df, width="stretch")
 
                 # Визуализация плана
                 fig = px.scatter(
@@ -413,7 +414,7 @@ elif page == "План закупок":
                         "red": "#dc3545",
                     },
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, config=dict(displayModeBar=False))
             else:
                 st.info("Нет запчастей, требующих срочной закупки")
         else:
@@ -442,7 +443,7 @@ elif page == "Визуализации":
             y="count",
             title="Количество запчастей по типам оборудования",
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, config=dict(displayModeBar=False))
 
     with tab2:
         st.subheader("История замен по времени")
@@ -462,7 +463,7 @@ elif page == "Визуализации":
                 y="count",
                 title="Количество замен по месяцам",
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, config=dict(displayModeBar=False))
         else:
             st.info("Нет данных о заменах")
 
@@ -473,11 +474,11 @@ elif page == "Визуализации":
             x="useful_life_months",
             title="Распределение сроков полезного использования запчастей",
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, config=dict(displayModeBar=False))
 
         fig2 = px.histogram(
             st.session_state.spare_parts_df,
             x="procurement_time_days",
             title="Распределение сроков закупки запчастей",
         )
-        st.plotly_chart(fig2, use_container_width=True)
+        st.plotly_chart(fig2, config=dict(displayModeBar=False))
