@@ -24,7 +24,7 @@ def funcenter(func):  # Измеряем время на работу функц
     return wrapper
 
 
-@funcenter
+# @funcenter
 def calculate_wear_level(replacement_date, useful_life_months):
     """
     Расчет степени износа запчасти
@@ -48,7 +48,7 @@ def calculate_wear_level(replacement_date, useful_life_months):
         return "red", max(0, remaining_percentage)
 
 
-@funcenter
+# @funcenter
 def calculate_procurement_deadline(
     replacement_date, useful_life_months, procurement_time_days
 ):
@@ -90,7 +90,7 @@ def get_wear_color(wear_level):
     return colors.get(wear_level, "#6c757d")
 
 
-@funcenter
+# @funcenter
 def format_date(date):
     """Форматирование даты для отображения"""
     if pd.isna(date):
@@ -98,9 +98,9 @@ def format_date(date):
     return date.strftime("%d.%m.%Y")
 
 
-@funcenter
+# @funcenter
 def get_replacement_type_display(replacement_type):
-    """Получение читаемого названия типа замены"""
+    """Получение читаемого названия типа замены."""
     types = {
         "repair": "Ремонт",
         "scheduled": "Плановая замена",
@@ -109,10 +109,10 @@ def get_replacement_type_display(replacement_type):
     return types.get(replacement_type, replacement_type)
 
 
-@funcenter
+# @funcenter
 def calculate_total_parts_needed(equipment_df, spare_parts_df, replacements_df):
     """
-    Расчет общего количества необходимых запчастей для всего парка
+    Расчет общего количества необходимых запчастей для всего парка.
     """
     result = []
 

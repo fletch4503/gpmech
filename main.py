@@ -2,11 +2,8 @@ import streamlit as st
 import pandas as pd
 from models import generate_test_data, create_dataframes
 from utils import (
-    # calculate_wear_level,
-    # calculate_procurement_deadline,
     get_next_procurement_dates,
     get_wear_color,
-    # format_date,
     get_replacement_type_display,
     calculate_total_parts_needed,
 )
@@ -169,9 +166,6 @@ elif page == "Справочники":
 
     with tab1:
         st.subheader("Оборудование")
-        # col1, col2 = st.columns([3, 1])
-
-        # with col1:
         with st.expander("➕ Добавить оборудование"):
             with st.form("add_equipment_form"):
                 name = st.text_input("Наименование")
@@ -184,7 +178,6 @@ elif page == "Справочники":
                     st.success("Оборудование добавлено!")
                     st.rerun()
 
-        # with col2:
         equipment_display_df = st.session_state.equipment_df.rename(
             columns={
                 "name": "Наименование",
@@ -195,8 +188,6 @@ elif page == "Справочники":
 
     with tab2:
         st.subheader("Авторемонтные мастерские")
-        # col1, col2 = st.columns([3, 1])
-        # with col2:
         with st.expander("➕ Добавить мастерскую"):
             with st.form("add_workshop_form"):
                 name = st.text_input("Наименование")
@@ -207,7 +198,6 @@ elif page == "Справочники":
                     st.success("Мастерская добавлена!")
                     st.rerun()
 
-        # with col1:
         workshops_display_df = st.session_state.workshops_df.rename(
             columns={
                 "name": "Наименование",
@@ -218,9 +208,6 @@ elif page == "Справочники":
 
     with tab3:
         st.subheader("Запчасти")
-        # col1, col2 = st.columns([3, 1])
-        # with col1:
-        # with col2:
         with st.expander("➕ Добавить запчасть"):
             with st.form("add_spare_part_form"):
                 name = st.text_input("Наименование")
@@ -337,8 +324,6 @@ elif page == "Анализ износа":
     if not wear_data.empty:
         # Группировка по степени износа
         wear_summary = wear_data.groupby("wear_level").size().reset_index(name="count")
-        # col1, col2 = st.columns(2)
-        # with col1:
         st.subheader("Сводка по степени износа")
         for _, row in wear_summary.iterrows():
             color = get_wear_color(row["wear_level"])
@@ -359,7 +344,6 @@ elif page == "Анализ износа":
                 unsafe_allow_html=True,
             )
 
-        # with col2:
         # Круговая диаграмма
         fig = px.pie(
             wear_summary,
