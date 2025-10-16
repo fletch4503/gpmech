@@ -50,19 +50,33 @@
 
 ### Локальный запуск
 
-1. Установите зависимости:
+1. Клонируйте репозиторий:
 
 ```bash
-pip install -r requirements.txt
+git clone <repository-url>
+cd gpmech
 ```
 
-2. Запустите приложение:
+2. Создайте виртуальное окружение:
 
 ```bash
-streamlit run main.py
+uv venv
 ```
 
-3. Откройте браузер и перейдите по адресу `http://localhost:8501`
+3. Активируйте виртуальное окружение и установите зависимости:
+
+```bash
+source .venv/bin/activate  # или .venv\Scripts\activate на Windows
+uv sync
+```
+
+4. Запустите приложение:
+
+```bash
+uv run streamlit run main.py
+```
+
+5. Откройте браузер и перейдите по адресу `http://localhost:8501`
 
 ### Запуск с помощью Docker
 
