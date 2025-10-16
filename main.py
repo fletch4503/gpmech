@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from models import generate_test_data, create_dataframes
+from init_db import initialize_database
 from utils import (
     get_next_procurement_dates,
     get_wear_color,
@@ -12,17 +13,20 @@ import plotly.graph_objects as go
 from datetime import datetime
 from database import SessionLocal, create_tables, get_db
 from crud import (
+    create_equipment_model,
+    get_all_equipment_models,
+    get_equipment_model_by_name,
     create_equipment,
-    get_all_equipment,
-    get_equipment_by_name,
+    get_equipment_by_vin,
+    get_equipment_by_model,
     create_workshop,
     get_all_workshops,
     create_spare_part,
     get_all_spare_parts,
-    get_spare_parts_by_equipment,
+    get_spare_parts_by_equipment_model,
     create_replacement_record,
     get_all_replacement_records,
-    get_replacement_records_by_equipment,
+    get_replacement_records_by_equipment_model,
     update_replacement_record,
     delete_replacement_record,
 )
@@ -36,59 +40,15 @@ create_tables()
 
 # Инициализация данных в session_state
 if "data_initialized" not in st.session_state:
+    # Инициализируем базу данных начальными данными
+    initialize_database()
+
     db = SessionLocal()
     try:
-        # Проверяем, есть ли данные в БД
-        equipment_count = len(get_all_equipment(db))
-        if equipment_count == 0:
-            # Генерируем тестовые данные и сохраняем в БД
-            equipment_list, workshops, spare_parts, replacement_records = (
-                generate_test_data()
-            )
-            for eq in equipment_list:
-                create_equipment(db, eq.name, eq.qty_in_fleet)
-            for ws in workshops:
-                create_workshop(db, ws.name, ws.address)
-            for sp in spare_parts:
-                eq = get_equipment_by_name(db, sp.parent_equipment)
-                if eq:
-                    create_spare_part(
-                        db,
-                        sp.name,
-                        sp.useful_life_months,
-                        eq.id,
-                        sp.qty_per_equipment,
-                        sp.qty_in_stock,
-                        sp.procurement_time_days,
-                    )
-            for rr in replacement_records:
-                eq = get_equipment_by_name(db, rr.equipment_name)
-                sp = None
-                for sp_obj in get_all_spare_parts(db):
-                    if (
-                        sp_obj.name == rr.spare_part_name
-                        and sp_obj.equipment_id == eq.id
-                    ):
-                        sp = sp_obj
-                        break
-                ws = None
-                for ws_obj in get_all_workshops(db):
-                    if ws_obj.name == rr.workshop_name:
-                        ws = ws_obj
-                        break
-                if eq and sp and ws:
-                    create_replacement_record(
-                        db,
-                        eq.id,
-                        sp.id,
-                        ws.id,
-                        rr.replacement_date,
-                        rr.replacement_type,
-                        rr.notes,
-                    )
-
         # Загружаем данные из БД в DataFrames
-        equipment = get_all_equipment(db)
+        from crud import get_all_equipment_models
+
+        equipment_models = get_all_equipment_models(db)
         workshops = get_all_workshops(db)
         spare_parts = get_all_spare_parts(db)
         replacements = get_all_replacement_records(db)
@@ -96,12 +56,11 @@ if "data_initialized" not in st.session_state:
         st.session_state.equipment_df = pd.DataFrame(
             [
                 {
-                    "id": eq.id,
-                    "name": eq.name,
-                    "vin": eq.vin,
-                    "qty_in_fleet": eq.qty_in_fleet,
+                    "id": model.id,
+                    "name": model.name,
+                    "qty_in_fleet": model.qty_in_fleet,
                 }
-                for eq in equipment
+                for model in equipment_models
             ]
         )
         st.session_state.workshops_df = pd.DataFrame(
@@ -113,7 +72,7 @@ if "data_initialized" not in st.session_state:
                     "id": sp.id,
                     "name": sp.name,
                     "useful_life_months": sp.useful_life_months,
-                    "parent_equipment": sp.equipment.name,
+                    "parent_equipment": sp.equipment_model.name,
                     "qty_per_equipment": sp.qty_per_equipment,
                     "qty_in_stock": sp.qty_in_stock,
                     "procurement_time_days": sp.procurement_time_days,
@@ -125,7 +84,8 @@ if "data_initialized" not in st.session_state:
             [
                 {
                     "id": rr.id,
-                    "equipment_name": rr.equipment.name,
+                    "equipment_vin": rr.equipment.vin,
+                    "equipment_model": rr.equipment.model.name,
                     "spare_part_name": rr.spare_part.name,
                     "workshop_name": rr.workshop.name,
                     "replacement_date": rr.replacement_date,
@@ -141,21 +101,19 @@ if "data_initialized" not in st.session_state:
 
 
 # Функции для работы с данными
-def add_equipment(name, qty_in_fleet, vin=None):
+def add_equipment_model(name, qty_in_fleet):
     """
-    Функция добавления Оборудования.
-    name         - Название Оборудования
+    Функция добавления модели оборудования.
+    name         - Название модели оборудования
     qty_in_fleet - Количество в парке
-    vin          - VIN номер (опционально)
     """
     db = SessionLocal()
     try:
-        eq = create_equipment(db, name, qty_in_fleet, vin)
+        model = create_equipment_model(db, name, qty_in_fleet)
         new_row = pd.DataFrame(
             {
-                "id": [eq.id],
+                "id": [model.id],
                 "name": [name],
-                "vin": [vin],
                 "qty_in_fleet": [qty_in_fleet],
             }
         )
@@ -202,13 +160,13 @@ def add_spare_part(
     """
     db = SessionLocal()
     try:
-        eq = get_equipment_by_name(db, parent_equipment)
-        if eq:
+        eq_model = get_equipment_model_by_name(db, parent_equipment)
+        if eq_model:
             sp = create_spare_part(
                 db,
                 name,
                 useful_life_months,
-                eq.id,
+                eq_model.id,
                 qty_per_equipment,
                 qty_in_stock,
                 procurement_time_days,
@@ -232,7 +190,7 @@ def add_spare_part(
 
 
 def add_replacement(
-    equipment_name,
+    equipment_vin,
     spare_part_name,
     workshop_name,
     replacement_date,
@@ -241,7 +199,7 @@ def add_replacement(
 ):
     """
     Функция добавления записи о замене.
-    equipment_name          - Название оборудования
+    equipment_vin           - VIN номер оборудования
     spare_part_name         - Название Запчасти
     workshop_name           - Название Мастерской
     replacement_date        - Дата замены
@@ -250,10 +208,13 @@ def add_replacement(
     """
     db = SessionLocal()
     try:
-        eq = get_equipment_by_name(db, equipment_name)
+        eq = get_equipment_by_vin(db, equipment_vin)
         sp = None
         for sp_obj in get_all_spare_parts(db):
-            if sp_obj.name == spare_part_name and sp_obj.equipment_id == eq.id:
+            if (
+                sp_obj.name == spare_part_name
+                and sp_obj.equipment_model_id == eq.model_id
+            ):
                 sp = sp_obj
                 break
         ws = None
@@ -268,7 +229,8 @@ def add_replacement(
             new_row = pd.DataFrame(
                 {
                     "id": [rr.id],
-                    "equipment_name": [equipment_name],
+                    "equipment_vin": [equipment_vin],
+                    "equipment_model": [eq.model.name],
                     "spare_part_name": [spare_part_name],
                     "workshop_name": [workshop_name],
                     "replacement_date": [replacement_date],
@@ -334,45 +296,46 @@ elif page == "Справочники":
 
     with tab1:
         st.subheader("Оборудование")
-        with st.expander("➕ Добавить оборудование"):
+        with st.expander("➕ Добавить модель оборудования"):
             with st.form("add_equipment_form"):
-                name = st.text_input("Наименование")
-                vin = st.text_input("VIN номер (опционально)")
+                name = st.text_input("Наименование модели")
                 qty_in_fleet = st.number_input(
                     "Количество в парке", min_value=1, value=1
                 )
                 submitted = st.form_submit_button("Добавить")
                 if submitted and name:
-                    add_equipment(name, qty_in_fleet, vin if vin else None)
-                    st.success("Оборудование добавлено!")
+                    add_equipment_model(name, qty_in_fleet)
+                    st.success("Модель оборудования добавлена!")
                     st.rerun()
 
         equipment_display_df = st.session_state.equipment_df.rename(
             columns={
-                "name": "Наименование",
-                "vin": "VIN",
+                "name": "Наименование модели",
                 "qty_in_fleet": "Количество в парке",
             }
         )
         st.dataframe(equipment_display_df, width="content")
 
-        # Выбор оборудования для просмотра замен
-        selected_equipment = st.selectbox(
-            "Выберите оборудование для просмотра замен:",
+        # Выбор модели оборудования для просмотра замен
+        selected_equipment_model = st.selectbox(
+            "Выберите модель оборудования для просмотра замен:",
             st.session_state.equipment_df["name"].tolist(),
             key="equipment_replacements_select",
         )
 
-        if selected_equipment:
+        if selected_equipment_model:
             db = SessionLocal()
             try:
-                eq = get_equipment_by_name(db, selected_equipment)
-                if eq:
-                    replacements = get_replacement_records_by_equipment(db, eq.id)
+                eq_model = get_equipment_model_by_name(db, selected_equipment_model)
+                if eq_model:
+                    replacements = get_replacement_records_by_equipment_model(
+                        db, eq_model.id
+                    )
                     if replacements:
                         replacements_df = pd.DataFrame(
                             [
                                 {
+                                    "VIN": rr.equipment.vin,
                                     "Дата замены": rr.replacement_date.strftime(
                                         "%d.%m.%Y"
                                     ),
@@ -386,11 +349,13 @@ elif page == "Справочники":
                                 for rr in replacements
                             ]
                         ).sort_values("Дата замены", ascending=False)
-                        st.subheader(f"История замен для {selected_equipment}")
+                        st.subheader(
+                            f"История замен для модели {selected_equipment_model}"
+                        )
                         st.dataframe(replacements_df, width="content")
                     else:
                         st.info(
-                            f"Для оборудования {selected_equipment} нет записей о заменах"
+                            f"Для модели оборудования {selected_equipment_model} нет записей о заменах"
                         )
             finally:
                 db.close()
@@ -468,12 +433,32 @@ elif page == "Учет замен":
     # Форма добавления замены сразу после заголовка
     with st.expander("➕ Добавить замену"):
         with st.form("add_replacement_form"):
-            equipment_name = st.selectbox(
-                "Оборудование", st.session_state.equipment_df["name"].tolist()
+            # Выбор модели оборудования
+            equipment_model_name = st.selectbox(
+                "Модель оборудования", st.session_state.equipment_df["name"].tolist()
             )
-            # Фильтруем запчасти по выбранному оборудованию
+
+            # Получаем список VIN для выбранной модели
+            db = SessionLocal()
+            vin_options = []
+            try:
+                eq_model = get_equipment_model_by_name(db, equipment_model_name)
+                if eq_model:
+                    equipment_instances = get_equipment_by_model(db, eq_model.id)
+                    vin_options = [eq.vin for eq in equipment_instances]
+            finally:
+                db.close()
+
+            if vin_options:
+                equipment_vin = st.selectbox("VIN номер оборудования", vin_options)
+            else:
+                st.error("Для выбранной модели нет экземпляров оборудования")
+                equipment_vin = None
+
+            # Фильтруем запчасти по выбранной модели оборудования
             suitable_parts = st.session_state.spare_parts_df[
-                st.session_state.spare_parts_df["parent_equipment"] == equipment_name
+                st.session_state.spare_parts_df["parent_equipment"]
+                == equipment_model_name
             ]["name"].tolist()
             spare_part_name = st.selectbox(
                 "Запчасть",
@@ -492,11 +477,11 @@ elif page == "Учет замен":
             submitted = st.form_submit_button("Добавить")
             if (
                 submitted
-                and equipment_name
+                and equipment_vin
                 and spare_part_name != "Нет подходящих запчастей"
             ):
                 add_replacement(
-                    equipment_name,
+                    equipment_vin,
                     spare_part_name,
                     workshop_name,
                     pd.to_datetime(replacement_date),
@@ -509,7 +494,8 @@ elif page == "Учет замен":
     # Таблица замен
     replacements_display_df = st.session_state.replacements_df.rename(
         columns={
-            "equipment_name": "Оборудование",
+            "equipment_vin": "VIN оборудования",
+            "equipment_model": "Модель оборудования",
             "spare_part_name": "Запчасть",
             "workshop_name": "Мастерская",
             "replacement_date": "Дата замены",

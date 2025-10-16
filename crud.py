@@ -1,14 +1,33 @@
 from sqlalchemy.orm import Session
-from database import Equipment, Workshop, SparePart, ReplacementRecord
+from database import EquipmentModel, Equipment, Workshop, SparePart, ReplacementRecord
 from typing import List, Optional
 from datetime import datetime
 
 
-# CRUD для Equipment
-def create_equipment(
-    db: Session, name: str, qty_in_fleet: int, vin: Optional[str] = None
-) -> Equipment:
-    db_equipment = Equipment(name=name, qty_in_fleet=qty_in_fleet, vin=vin)
+# CRUD для EquipmentModel
+def create_equipment_model(db: Session, name: str, qty_in_fleet: int) -> EquipmentModel:
+    db_equipment_model = EquipmentModel(name=name, qty_in_fleet=qty_in_fleet)
+    db.add(db_equipment_model)
+    db.commit()
+    db.refresh(db_equipment_model)
+    return db_equipment_model
+
+
+def get_equipment_model(db: Session, model_id: int) -> Optional[EquipmentModel]:
+    return db.query(EquipmentModel).filter(EquipmentModel.id == model_id).first()
+
+
+def get_equipment_model_by_name(db: Session, name: str) -> Optional[EquipmentModel]:
+    return db.query(EquipmentModel).filter(EquipmentModel.name == name).first()
+
+
+def get_all_equipment_models(db: Session) -> List[EquipmentModel]:
+    return db.query(EquipmentModel).all()
+
+
+# CRUD для Equipment (экземпляры)
+def create_equipment(db: Session, model_id: int, vin: str) -> Equipment:
+    db_equipment = Equipment(model_id=model_id, vin=vin)
     db.add(db_equipment)
     db.commit()
     db.refresh(db_equipment)
@@ -19,32 +38,16 @@ def get_equipment(db: Session, equipment_id: int) -> Optional[Equipment]:
     return db.query(Equipment).filter(Equipment.id == equipment_id).first()
 
 
-def get_equipment_by_name(db: Session, name: str) -> Optional[Equipment]:
-    return db.query(Equipment).filter(Equipment.name == name).first()
+def get_equipment_by_vin(db: Session, vin: str) -> Optional[Equipment]:
+    return db.query(Equipment).filter(Equipment.vin == vin).first()
+
+
+def get_equipment_by_model(db: Session, model_id: int) -> List[Equipment]:
+    return db.query(Equipment).filter(Equipment.model_id == model_id).all()
 
 
 def get_all_equipment(db: Session) -> List[Equipment]:
     return db.query(Equipment).all()
-
-
-def update_equipment(
-    db: Session,
-    equipment_id: int,
-    name: Optional[str] = None,
-    qty_in_fleet: Optional[int] = None,
-    vin: Optional[str] = None,
-) -> Optional[Equipment]:
-    equipment = db.query(Equipment).filter(Equipment.id == equipment_id).first()
-    if equipment:
-        if name is not None:
-            equipment.name = name
-        if qty_in_fleet is not None:
-            equipment.qty_in_fleet = qty_in_fleet
-        if vin is not None:
-            equipment.vin = vin
-        db.commit()
-        db.refresh(equipment)
-    return equipment
 
 
 def delete_equipment(db: Session, equipment_id: int) -> bool:
@@ -74,7 +77,7 @@ def create_spare_part(
     db: Session,
     name: str,
     useful_life_months: int,
-    equipment_id: int,
+    equipment_model_id: int,
     qty_per_equipment: int,
     qty_in_stock: int,
     procurement_time_days: int,
@@ -82,7 +85,7 @@ def create_spare_part(
     db_spare_part = SparePart(
         name=name,
         useful_life_months=useful_life_months,
-        equipment_id=equipment_id,
+        equipment_model_id=equipment_model_id,
         qty_per_equipment=qty_per_equipment,
         qty_in_stock=qty_in_stock,
         procurement_time_days=procurement_time_days,
@@ -93,8 +96,14 @@ def create_spare_part(
     return db_spare_part
 
 
-def get_spare_parts_by_equipment(db: Session, equipment_id: int) -> List[SparePart]:
-    return db.query(SparePart).filter(SparePart.equipment_id == equipment_id).all()
+def get_spare_parts_by_equipment_model(
+    db: Session, equipment_model_id: int
+) -> List[SparePart]:
+    return (
+        db.query(SparePart)
+        .filter(SparePart.equipment_model_id == equipment_model_id)
+        .all()
+    )
 
 
 def get_all_spare_parts(db: Session) -> List[SparePart]:
@@ -125,12 +134,13 @@ def create_replacement_record(
     return db_replacement
 
 
-def get_replacement_records_by_equipment(
-    db: Session, equipment_id: int
+def get_replacement_records_by_equipment_model(
+    db: Session, equipment_model_id: int
 ) -> List[ReplacementRecord]:
     return (
         db.query(ReplacementRecord)
-        .filter(ReplacementRecord.equipment_id == equipment_id)
+        .join(Equipment)
+        .filter(Equipment.model_id == equipment_model_id)
         .all()
     )
 

@@ -23,10 +23,16 @@ class SparePart:
         self.procurement_time_days = procurement_time_days
 
 
-class Equipment:
-    def __init__(self, name, qty_in_fleet, vin=None):
+class EquipmentModel:
+    def __init__(self, name, qty_in_fleet):
         self.name = name
         self.qty_in_fleet = qty_in_fleet
+        self.equipment_instances = []  # Список экземпляров оборудования
+
+
+class Equipment:
+    def __init__(self, model_name, vin):
+        self.model_name = model_name
         self.vin = vin
 
 
@@ -55,20 +61,30 @@ class ReplacementRecord:
 
 
 # Генерация тестовых данных
-
-
 def generate_test_data():
-    # Оборудование с VIN номерами
-    equipment_list = [
-        Equipment("Экскаватор CAT 320", 5, "CAT320VIN001"),
-        Equipment("Бульдозер D6", 3, "D6VIN002"),
-        Equipment("Самосвал Volvo FH16", 8, "VOLVOFH16VIN003"),
-        Equipment("Кран Liebherr LTM", 2, "LIEBHERRLTMVIN004"),
-        Equipment("Генератор Cummins", 4, "CUMMINSVIN005"),
-        Equipment("Компрессор Atlas Copco", 6, "ATLASCOPCOVIN006"),
+    # Модели оборудования - расширить до 10 моделей
+    equipment_models = [
+        EquipmentModel("Экскаватор CAT 320", 5),
+        EquipmentModel("Бульдозер D6", 3),
+        EquipmentModel("Самосвал Volvo FH16", 8),
+        EquipmentModel("Кран Liebherr LTM", 2),
+        EquipmentModel("Генератор Cummins", 4),
+        EquipmentModel("Компрессор Atlas Copco", 6),
+        EquipmentModel("Погрузчик JCB", 7),
+        EquipmentModel("Бетономешалка Putzmeister", 4),
+        EquipmentModel("Автокран Grove", 3),
+        EquipmentModel("Дизель-генератор Caterpillar", 5),
     ]
 
-    # Мастерские
+    # Создаем экземпляры оборудования для каждой модели
+    equipment_instances = []
+    for model in equipment_models:
+        for i in range(model.qty_in_fleet):
+            vin = f"{model.name.replace(' ', '').upper()}VIN{i+1:03d}"
+            equipment_instances.append(Equipment(model.name, vin))
+            model.equipment_instances.append(equipment_instances[-1])
+
+    # Мастерские - расширить до 8-ми
     workshops = [
         Workshop("Авторемонтная мастерская №1", "ул. Ленина, 10"),
         Workshop("Сервисный центр ТехноСервис", "пр. Победы, 25"),
@@ -76,6 +92,8 @@ def generate_test_data():
         Workshop("Центр технического обслуживания", "ул. Кирова, 15"),
         Workshop("Автосервис Профи", "ул. Советская, 30"),
         Workshop("Мастерская СпецТех", "ул. Московская, 20"),
+        Workshop("СервисЦентр АвтоПро", "пр. Ленина, 45"),
+        Workshop("Технический центр РемСервис", "ул. Пушкина, 12"),
     ]
 
     # Запчасти с разными сроками службы для покрытия всех зон износа
@@ -87,15 +105,20 @@ def generate_test_data():
         SparePart("Гидроцилиндр", 48, "Кран Liebherr LTM", 6, 12, 21),
         SparePart("Аккумулятор", 24, "Генератор Cummins", 2, 10, 3),
         SparePart("Ремень генератора", 18, "Компрессор Atlas Copco", 1, 25, 4),
-        # Желтая зона (средний износ)
+        # Желтая зона (средний износ) - добавить 7 единиц
         SparePart("Шина", 24, "Экскаватор CAT 320", 4, 16, 10),
         SparePart("Тормозные колодки", 12, "Самосвал Volvo FH16", 8, 40, 6),
         SparePart("Цепь привода", 36, "Бульдозер D6", 1, 5, 18),
-        # Красная зона (критический износ)
+        SparePart("Водяной насос", 30, "Погрузчик JCB", 2, 8, 12),
+        SparePart("Система охлаждения", 42, "Бетономешалка Putzmeister", 1, 3, 15),
+        SparePart("Гидравлический мотор", 48, "Автокран Grove", 3, 6, 20),
+        SparePart("Топливный фильтр", 18, "Дизель-генератор Caterpillar", 2, 12, 8),
+        # Красная зона (критический износ) - добавить 5 единиц
         SparePart("Клапан давления", 30, "Кран Liebherr LTM", 2, 8, 12),
         SparePart("Шина", 24, "Самосвал Volvo FH16", 6, 18, 14),
         SparePart("Турбокомпрессор", 60, "Самосвал Volvo FH16", 1, 2, 30),
         SparePart("Гидронасос", 42, "Экскаватор CAT 320", 2, 3, 20),
+        SparePart("Стартер", 36, "Генератор Cummins", 1, 1, 18),
     ]
 
     # Записи о заменах для создания разных уровней износа
@@ -112,12 +135,12 @@ def generate_test_data():
         (150, 365),  # 150-365 дней назад
     ]
 
-    for scenario_days, count in [(0, 10), (60, 8), (150, 12)]:
+    for scenario_days, count in [(0, 15), (60, 12), (150, 18)]:
         for i in range(count):
-            equipment = random.choice(equipment_list)
-            # Выбираем запчасть, подходящую для этого оборудования
+            equipment = random.choice(equipment_instances)
+            # Выбираем запчасть, подходящую для модели этого оборудования
             suitable_parts = [
-                sp for sp in spare_parts if sp.parent_equipment == equipment.name
+                sp for sp in spare_parts if sp.parent_equipment == equipment.model_name
             ]
             if suitable_parts:
                 spare_part = random.choice(suitable_parts)
@@ -128,10 +151,10 @@ def generate_test_data():
                 )
                 replacement_date = datetime.now() - timedelta(days=days_ago)
                 replacement_type = random.choice(["repair", "scheduled", "unscheduled"])
-                notes = f"Замена запчасти {spare_part.name} в {equipment.name}"
+                notes = f"Замена запчасти {spare_part.name} в {equipment.model_name} (VIN: {equipment.vin})"
                 replacement_records.append(
                     ReplacementRecord(
-                        equipment.name,
+                        equipment.vin,  # Теперь используем VIN вместо названия модели
                         spare_part.name,
                         workshop.name,
                         replacement_date,
@@ -140,13 +163,24 @@ def generate_test_data():
                     )
                 )
 
-    return equipment_list, workshops, spare_parts, replacement_records
+    return (
+        equipment_models,
+        equipment_instances,
+        workshops,
+        spare_parts,
+        replacement_records,
+    )
 
 
 # Преобразование в DataFrames для удобства работы
-def create_dataframes(equipment_list, workshops, spare_parts, replacement_records):
+def create_dataframes(
+    equipment_models, equipment_instances, workshops, spare_parts, replacement_records
+):
     equipment_df = pd.DataFrame(
-        [{"name": eq.name, "qty_in_fleet": eq.qty_in_fleet} for eq in equipment_list]
+        [
+            {"name": model.name, "qty_in_fleet": model.qty_in_fleet}
+            for model in equipment_models
+        ]
     )
 
     workshops_df = pd.DataFrame(
@@ -170,7 +204,7 @@ def create_dataframes(equipment_list, workshops, spare_parts, replacement_record
     replacements_df = pd.DataFrame(
         [
             {
-                "equipment_name": rr.equipment_name,
+                "equipment_vin": rr.equipment_name,  # Теперь это VIN
                 "spare_part_name": rr.spare_part_name,
                 "workshop_name": rr.workshop_name,
                 "replacement_date": rr.replacement_date,

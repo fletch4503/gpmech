@@ -1,0 +1,5 @@
+
+docker-compose exec postgres psql -U gpmech_user -d gpmech -c "SELECT COUNT(*) FROM equipment;"
+docker-compose exec postgres psql -U gpmech_user -d gpmech -c "SELECT COUNT(*) FROM workshops;"
+docker-compose exec postgres psql -U gpmech_user -d gpmech -c "SELECT COUNT(*) FROM spare_parts;"
+docker-compose exec postgres psql -U gpmech_user -d gpmech -c "SELECT COUNT(*) FROM replacement_records;"
