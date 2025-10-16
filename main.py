@@ -490,6 +490,10 @@ elif page == "План закупок":
                 st.dataframe(plan_display_df, width="content")
 
                 # Визуализация плана
+                # Убедимся, что значения 'needed' положительные для корректного отображения
+                plan_df["needed"] = plan_df["needed"].clip(
+                    lower=1
+                )  # Минимум 1 для отображения
                 fig = px.scatter(
                     plan_df,
                     x="date",
