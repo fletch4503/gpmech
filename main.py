@@ -31,6 +31,11 @@ if "data_initialized" not in st.session_state:
 
 # Функции для работы с данными
 def add_equipment(name, qty_in_fleet):
+    """
+    Функция добавления Оборудования.
+    name         - Название Оборудования
+    qty_in_fleet - Количество в парке
+    """
     new_row = pd.DataFrame({"name": [name], "qty_in_fleet": [qty_in_fleet]})
     st.session_state.equipment_df = pd.concat(
         [st.session_state.equipment_df, new_row], ignore_index=True
@@ -38,6 +43,11 @@ def add_equipment(name, qty_in_fleet):
 
 
 def add_workshop(name, address):
+    """
+    Функция добавления Мастерской.
+    name    - Название Мастерской
+    address - Адрес Мастерской
+    """
     new_row = pd.DataFrame({"name": [name], "address": [address]})
     st.session_state.workshops_df = pd.concat(
         [st.session_state.workshops_df, new_row], ignore_index=True
@@ -52,6 +62,15 @@ def add_spare_part(
     qty_in_stock,
     procurement_time_days,
 ):
+    """
+    Функция добавления запчасти.
+    name                    - Название запчасти
+    useful_life_months      - Срок службы в месяцах
+    parent_equipment        - Куда устанавливается (Родительское оборудование)
+    qty_per_equipment       - Количество, требуемое для установки в Родительское оборудование
+    qty_in_stock            - Текущее количество на складе
+    procurement_time_days   - Срок закупки запчасти (дни)
+    """
     new_row = pd.DataFrame(
         {
             "name": [name],
@@ -75,6 +94,15 @@ def add_replacement(
     replacement_type,
     notes,
 ):
+    """
+    Функция добавления записи о замене.
+    equipment_name          - Название оборудования
+    spare_part_name         - Название Запчасти
+    workshop_name           - Название Мастерской
+    replacement_date        - Дата замены
+    replacement_type        - Тип замены - (repair-замена/scheduled-запланированная/unscheduled-незапланированная)
+    notes                   - Примечания
+    """
     new_row = pd.DataFrame(
         {
             "equipment_name": [equipment_name],
@@ -122,7 +150,7 @@ if page == "Главная":
     """
     )
 
-    # Краткая статистика
+    # Краткая статистика в Footer-е
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.metric("Оборудование", len(st.session_state.equipment_df))
@@ -144,7 +172,13 @@ elif page == "Справочники":
         col1, col2 = st.columns([3, 1])
 
         with col1:
-            st.dataframe(st.session_state.equipment_df, width="stretch")
+            equipment_display_df = st.session_state.equipment_df.rename(
+                columns={
+                    "name": "Наименование",
+                    "qty_in_fleet": "Количество в парке",
+                }
+            )
+            st.dataframe(equipment_display_df, width="stretch")
 
         with col2:
             with st.expander("➕ Добавить оборудование"):
@@ -164,7 +198,13 @@ elif page == "Справочники":
         col1, col2 = st.columns([3, 1])
 
         with col1:
-            st.dataframe(st.session_state.workshops_df, width="stretch")
+            workshops_display_df = st.session_state.workshops_df.rename(
+                columns={
+                    "name": "Наименование",
+                    "address": "Адрес",
+                }
+            )
+            st.dataframe(workshops_display_df, width="stretch")
 
         with col2:
             with st.expander("➕ Добавить мастерскую"):
@@ -182,7 +222,17 @@ elif page == "Справочники":
         col1, col2 = st.columns([3, 1])
 
         with col1:
-            st.dataframe(st.session_state.spare_parts_df, width="stretch")
+            spare_parts_display_df = st.session_state.spare_parts_df.rename(
+                columns={
+                    "name": "Наименование",
+                    "useful_life_months": "Срок службы (месяцы)",
+                    "parent_equipment": "Оборудование",
+                    "qty_per_equipment": "Кол-во на единицу",
+                    "qty_in_stock": "На складе",
+                    "procurement_time_days": "Срок закупки (дни)",
+                }
+            )
+            st.dataframe(spare_parts_display_df, width="stretch")
 
         with col2:
             with st.expander("➕ Добавить запчасть"):
@@ -224,7 +274,17 @@ elif page == "Учет замен":
     col1, col2 = st.columns([3, 1])
 
     with col1:
-        st.dataframe(st.session_state.replacements_df, width="stretch")
+        replacements_display_df = st.session_state.replacements_df.rename(
+            columns={
+                "equipment_name": "Оборудование",
+                "spare_part_name": "Запчасть",
+                "workshop_name": "Мастерская",
+                "replacement_date": "Дата замены",
+                "replacement_type": "Тип замены",
+                "notes": "Примечания",
+            }
+        )
+        st.dataframe(replacements_display_df, width="stretch")
 
     with col2:
         with st.expander("➕ Добавить замену"):
@@ -322,7 +382,20 @@ elif page == "Анализ износа":
             return f"background-color: {color}; color: white"
 
         # styled_df = wear_data.style.applymap(color_wear_level, subset=["wear_level"])
-        styled_df = wear_data.style.map(color_wear_level, subset=["wear_level"])
+        wear_display_df = wear_data.rename(
+            columns={
+                "equipment_name": "Оборудование",
+                "part_name": "Запчасть",
+                "total_needed": "Требуется",
+                "qty_in_stock": "На складе",
+                "wear_level": "Степень износа",
+                "remaining_pct": "Остаток (%)",
+                "procurement_deadline": "Срок закупки",
+            }
+        )
+        styled_df = wear_display_df.style.map(
+            color_wear_level, subset=["Степень износа"]
+        )
         st.dataframe(styled_df, width="stretch")
 
         # Фильтр по оборудованию
@@ -336,7 +409,18 @@ elif page == "Анализ износа":
         else:
             filtered_data = wear_data
 
-        st.dataframe(filtered_data, width="stretch")
+        filtered_display_df = filtered_data.rename(
+            columns={
+                "equipment_name": "Оборудование",
+                "part_name": "Запчасть",
+                "total_needed": "Требуется",
+                "qty_in_stock": "На складе",
+                "wear_level": "Степень износа",
+                "remaining_pct": "Остаток (%)",
+                "procurement_deadline": "Срок закупки",
+            }
+        )
+        st.dataframe(filtered_display_df, width="stretch")
     else:
         st.info("Нет данных для анализа износа")
 
@@ -365,20 +449,28 @@ elif page == "План закупок":
             ].apply(lambda x: get_next_procurement_dates(x) if pd.notna(x) else [])
 
             st.subheader("Запчасти, требующие закупки")
-            st.dataframe(
-                procurement_needed[
-                    [
-                        "equipment_name",
-                        "part_name",
-                        "total_needed",
-                        "qty_in_stock",
-                        "wear_level",
-                        "remaining_pct",
-                        "procurement_deadline",
-                    ]
-                ],
-                width="stretch",
+            procurement_display_df = procurement_needed[
+                [
+                    "equipment_name",
+                    "part_name",
+                    "total_needed",
+                    "qty_in_stock",
+                    "wear_level",
+                    "remaining_pct",
+                    "procurement_deadline",
+                ]
+            ].rename(
+                columns={
+                    "equipment_name": "Оборудование",
+                    "part_name": "Запчасть",
+                    "total_needed": "Требуется",
+                    "qty_in_stock": "На складе",
+                    "wear_level": "Степень износа",
+                    "remaining_pct": "Остаток (%)",
+                    "procurement_deadline": "Срок закупки",
+                }
             )
+            st.dataframe(procurement_display_df, width="stretch")
 
             # Группировка по датам
             procurement_plan = []
@@ -398,7 +490,16 @@ elif page == "План закупок":
             if procurement_plan:
                 plan_df = pd.DataFrame(procurement_plan).sort_values("date")
                 st.subheader("Календарный план закупок")
-                st.dataframe(plan_df, width="stretch")
+                plan_display_df = plan_df.rename(
+                    columns={
+                        "date": "Дата",
+                        "equipment": "Оборудование",
+                        "part": "Запчасть",
+                        "needed": "Требуется",
+                        "wear_level": "Срочность",
+                    }
+                )
+                st.dataframe(plan_display_df, width="stretch")
 
                 # Визуализация плана
                 fig = px.scatter(
