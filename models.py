@@ -24,9 +24,10 @@ class SparePart:
 
 
 class Equipment:
-    def __init__(self, name, qty_in_fleet):
+    def __init__(self, name, qty_in_fleet, vin=None):
         self.name = name
         self.qty_in_fleet = qty_in_fleet
+        self.vin = vin
 
 
 class Workshop:
@@ -57,14 +58,14 @@ class ReplacementRecord:
 
 
 def generate_test_data():
-    # Оборудование
+    # Оборудование с VIN номерами
     equipment_list = [
-        Equipment("Экскаватор CAT 320", 5),
-        Equipment("Бульдозер D6", 3),
-        Equipment("Самосвал Volvo FH16", 8),
-        Equipment("Кран Liebherr LTM", 2),
-        Equipment("Генератор Cummins", 4),
-        Equipment("Компрессор Atlas Copco", 6),
+        Equipment("Экскаватор CAT 320", 5, "CAT320VIN001"),
+        Equipment("Бульдозер D6", 3, "D6VIN002"),
+        Equipment("Самосвал Volvo FH16", 8, "VOLVOFH16VIN003"),
+        Equipment("Кран Liebherr LTM", 2, "LIEBHERRLTMVIN004"),
+        Equipment("Генератор Cummins", 4, "CUMMINSVIN005"),
+        Equipment("Компрессор Atlas Copco", 6, "ATLASCOPCOVIN006"),
     ]
 
     # Мастерские
@@ -77,47 +78,67 @@ def generate_test_data():
         Workshop("Мастерская СпецТех", "ул. Московская, 20"),
     ]
 
-    # Запчасти
+    # Запчасти с разными сроками службы для покрытия всех зон износа
     spare_parts = [
+        # Зеленая зона (новые запчасти, недавно замененные)
         SparePart("Фильтр гидравлический", 24, "Экскаватор CAT 320", 4, 20, 7),
         SparePart("Масляный фильтр", 12, "Бульдозер D6", 2, 15, 5),
         SparePart("Топливный насос", 36, "Самосвал Volvo FH16", 1, 10, 14),
         SparePart("Гидроцилиндр", 48, "Кран Liebherr LTM", 6, 12, 21),
         SparePart("Аккумулятор", 24, "Генератор Cummins", 2, 10, 3),
         SparePart("Ремень генератора", 18, "Компрессор Atlas Copco", 1, 25, 4),
+        # Желтая зона (средний износ)
         SparePart("Шина", 24, "Экскаватор CAT 320", 4, 16, 10),
         SparePart("Тормозные колодки", 12, "Самосвал Volvo FH16", 8, 40, 6),
         SparePart("Цепь привода", 36, "Бульдозер D6", 1, 5, 18),
+        # Красная зона (критический износ)
         SparePart("Клапан давления", 30, "Кран Liebherr LTM", 2, 8, 12),
         SparePart("Шина", 24, "Самосвал Volvo FH16", 6, 18, 14),
+        SparePart("Турбокомпрессор", 60, "Самосвал Volvo FH16", 1, 2, 30),
+        SparePart("Гидронасос", 42, "Экскаватор CAT 320", 2, 3, 20),
     ]
 
-    # Записи о заменах
+    # Записи о заменах для создания разных уровней износа
     replacement_records = []
     base_date = datetime.now() - timedelta(days=365)
 
-    for i in range(30):
-        equipment = random.choice(equipment_list)
-        # Выбираем запчасть, подходящую для этого оборудования
-        suitable_parts = [
-            sp for sp in spare_parts if sp.parent_equipment == equipment.name
-        ]
-        if suitable_parts:
-            spare_part = random.choice(suitable_parts)
-            workshop = random.choice(workshops)
-            replacement_date = base_date + timedelta(days=random.randint(0, 365))
-            replacement_type = random.choice(["repair", "scheduled", "unscheduled"])
-            notes = f"Замена запчасти {spare_part.name} в {equipment.name}"
-            replacement_records.append(
-                ReplacementRecord(
-                    equipment.name,
-                    spare_part.name,
-                    workshop.name,
-                    replacement_date,
-                    replacement_type,
-                    notes,
+    # Создаем замены для покрытия всех зон износа
+    wear_scenarios = [
+        # Зеленая зона - недавние замены
+        (0, 30),  # 0-30 дней назад
+        # Желтая зона - средний срок
+        (60, 120),  # 60-120 дней назад
+        # Красная зона - старые замены или отсутствие замен
+        (150, 365),  # 150-365 дней назад
+    ]
+
+    for scenario_days, count in [(0, 10), (60, 8), (150, 12)]:
+        for i in range(count):
+            equipment = random.choice(equipment_list)
+            # Выбираем запчасть, подходящую для этого оборудования
+            suitable_parts = [
+                sp for sp in spare_parts if sp.parent_equipment == equipment.name
+            ]
+            if suitable_parts:
+                spare_part = random.choice(suitable_parts)
+                workshop = random.choice(workshops)
+                # Создаем дату замены в соответствующем диапазоне
+                days_ago = scenario_days + random.randint(
+                    0, min(30, 365 - scenario_days)
                 )
-            )
+                replacement_date = datetime.now() - timedelta(days=days_ago)
+                replacement_type = random.choice(["repair", "scheduled", "unscheduled"])
+                notes = f"Замена запчасти {spare_part.name} в {equipment.name}"
+                replacement_records.append(
+                    ReplacementRecord(
+                        equipment.name,
+                        spare_part.name,
+                        workshop.name,
+                        replacement_date,
+                        replacement_type,
+                        notes,
+                    )
+                )
 
     return equipment_list, workshops, spare_parts, replacement_records
 

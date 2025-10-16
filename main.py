@@ -10,33 +10,160 @@ from utils import (
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime
+from database import SessionLocal, create_tables, get_db
+from crud import (
+    create_equipment,
+    get_all_equipment,
+    get_equipment_by_name,
+    create_workshop,
+    get_all_workshops,
+    create_spare_part,
+    get_all_spare_parts,
+    get_spare_parts_by_equipment,
+    create_replacement_record,
+    get_all_replacement_records,
+    get_replacement_records_by_equipment,
+    update_replacement_record,
+    delete_replacement_record,
+)
+from sqlalchemy.orm import Session
 
 # Настройка страницы
 st.set_page_config(page_title="Журнал запасных частей", page_icon="🔧", layout="wide")
 
+# Инициализация базы данных
+create_tables()
+
 # Инициализация данных в session_state
 if "data_initialized" not in st.session_state:
-    equipment_list, workshops, spare_parts, replacement_records = generate_test_data()
-    (
-        st.session_state.equipment_df,
-        st.session_state.workshops_df,
-        st.session_state.spare_parts_df,
-        st.session_state.replacements_df,
-    ) = create_dataframes(equipment_list, workshops, spare_parts, replacement_records)
-    st.session_state.data_initialized = True
+    db = SessionLocal()
+    try:
+        # Проверяем, есть ли данные в БД
+        equipment_count = len(get_all_equipment(db))
+        if equipment_count == 0:
+            # Генерируем тестовые данные и сохраняем в БД
+            equipment_list, workshops, spare_parts, replacement_records = (
+                generate_test_data()
+            )
+            for eq in equipment_list:
+                create_equipment(db, eq.name, eq.qty_in_fleet)
+            for ws in workshops:
+                create_workshop(db, ws.name, ws.address)
+            for sp in spare_parts:
+                eq = get_equipment_by_name(db, sp.parent_equipment)
+                if eq:
+                    create_spare_part(
+                        db,
+                        sp.name,
+                        sp.useful_life_months,
+                        eq.id,
+                        sp.qty_per_equipment,
+                        sp.qty_in_stock,
+                        sp.procurement_time_days,
+                    )
+            for rr in replacement_records:
+                eq = get_equipment_by_name(db, rr.equipment_name)
+                sp = None
+                for sp_obj in get_all_spare_parts(db):
+                    if (
+                        sp_obj.name == rr.spare_part_name
+                        and sp_obj.equipment_id == eq.id
+                    ):
+                        sp = sp_obj
+                        break
+                ws = None
+                for ws_obj in get_all_workshops(db):
+                    if ws_obj.name == rr.workshop_name:
+                        ws = ws_obj
+                        break
+                if eq and sp and ws:
+                    create_replacement_record(
+                        db,
+                        eq.id,
+                        sp.id,
+                        ws.id,
+                        rr.replacement_date,
+                        rr.replacement_type,
+                        rr.notes,
+                    )
+
+        # Загружаем данные из БД в DataFrames
+        equipment = get_all_equipment(db)
+        workshops = get_all_workshops(db)
+        spare_parts = get_all_spare_parts(db)
+        replacements = get_all_replacement_records(db)
+
+        st.session_state.equipment_df = pd.DataFrame(
+            [
+                {
+                    "id": eq.id,
+                    "name": eq.name,
+                    "vin": eq.vin,
+                    "qty_in_fleet": eq.qty_in_fleet,
+                }
+                for eq in equipment
+            ]
+        )
+        st.session_state.workshops_df = pd.DataFrame(
+            [{"id": ws.id, "name": ws.name, "address": ws.address} for ws in workshops]
+        )
+        st.session_state.spare_parts_df = pd.DataFrame(
+            [
+                {
+                    "id": sp.id,
+                    "name": sp.name,
+                    "useful_life_months": sp.useful_life_months,
+                    "parent_equipment": sp.equipment.name,
+                    "qty_per_equipment": sp.qty_per_equipment,
+                    "qty_in_stock": sp.qty_in_stock,
+                    "procurement_time_days": sp.procurement_time_days,
+                }
+                for sp in spare_parts
+            ]
+        )
+        st.session_state.replacements_df = pd.DataFrame(
+            [
+                {
+                    "id": rr.id,
+                    "equipment_name": rr.equipment.name,
+                    "spare_part_name": rr.spare_part.name,
+                    "workshop_name": rr.workshop.name,
+                    "replacement_date": rr.replacement_date,
+                    "replacement_type": rr.replacement_type,
+                    "notes": rr.notes,
+                }
+                for rr in replacements
+            ]
+        )
+        st.session_state.data_initialized = True
+    finally:
+        db.close()
 
 
 # Функции для работы с данными
-def add_equipment(name, qty_in_fleet):
+def add_equipment(name, qty_in_fleet, vin=None):
     """
     Функция добавления Оборудования.
     name         - Название Оборудования
     qty_in_fleet - Количество в парке
+    vin          - VIN номер (опционально)
     """
-    new_row = pd.DataFrame({"name": [name], "qty_in_fleet": [qty_in_fleet]})
-    st.session_state.equipment_df = pd.concat(
-        [st.session_state.equipment_df, new_row], ignore_index=True
-    )
+    db = SessionLocal()
+    try:
+        eq = create_equipment(db, name, qty_in_fleet, vin)
+        new_row = pd.DataFrame(
+            {
+                "id": [eq.id],
+                "name": [name],
+                "vin": [vin],
+                "qty_in_fleet": [qty_in_fleet],
+            }
+        )
+        st.session_state.equipment_df = pd.concat(
+            [st.session_state.equipment_df, new_row], ignore_index=True
+        )
+    finally:
+        db.close()
 
 
 def add_workshop(name, address):
@@ -45,10 +172,15 @@ def add_workshop(name, address):
     name    - Название Мастерской
     address - Адрес Мастерской
     """
-    new_row = pd.DataFrame({"name": [name], "address": [address]})
-    st.session_state.workshops_df = pd.concat(
-        [st.session_state.workshops_df, new_row], ignore_index=True
-    )
+    db = SessionLocal()
+    try:
+        ws = create_workshop(db, name, address)
+        new_row = pd.DataFrame({"id": [ws.id], "name": [name], "address": [address]})
+        st.session_state.workshops_df = pd.concat(
+            [st.session_state.workshops_df, new_row], ignore_index=True
+        )
+    finally:
+        db.close()
 
 
 def add_spare_part(
@@ -68,19 +200,35 @@ def add_spare_part(
     qty_in_stock            - Текущее количество на складе
     procurement_time_days   - Срок закупки запчасти (дни)
     """
-    new_row = pd.DataFrame(
-        {
-            "name": [name],
-            "useful_life_months": [useful_life_months],
-            "parent_equipment": [parent_equipment],
-            "qty_per_equipment": [qty_per_equipment],
-            "qty_in_stock": [qty_in_stock],
-            "procurement_time_days": [procurement_time_days],
-        }
-    )
-    st.session_state.spare_parts_df = pd.concat(
-        [st.session_state.spare_parts_df, new_row], ignore_index=True
-    )
+    db = SessionLocal()
+    try:
+        eq = get_equipment_by_name(db, parent_equipment)
+        if eq:
+            sp = create_spare_part(
+                db,
+                name,
+                useful_life_months,
+                eq.id,
+                qty_per_equipment,
+                qty_in_stock,
+                procurement_time_days,
+            )
+            new_row = pd.DataFrame(
+                {
+                    "id": [sp.id],
+                    "name": [name],
+                    "useful_life_months": [useful_life_months],
+                    "parent_equipment": [parent_equipment],
+                    "qty_per_equipment": [qty_per_equipment],
+                    "qty_in_stock": [qty_in_stock],
+                    "procurement_time_days": [procurement_time_days],
+                }
+            )
+            st.session_state.spare_parts_df = pd.concat(
+                [st.session_state.spare_parts_df, new_row], ignore_index=True
+            )
+    finally:
+        db.close()
 
 
 def add_replacement(
@@ -100,19 +248,39 @@ def add_replacement(
     replacement_type        - Тип замены - (repair-замена/scheduled-запланированная/unscheduled-незапланированная)
     notes                   - Примечания
     """
-    new_row = pd.DataFrame(
-        {
-            "equipment_name": [equipment_name],
-            "spare_part_name": [spare_part_name],
-            "workshop_name": [workshop_name],
-            "replacement_date": [replacement_date],
-            "replacement_type": [replacement_type],
-            "notes": [notes],
-        }
-    )
-    st.session_state.replacements_df = pd.concat(
-        [st.session_state.replacements_df, new_row], ignore_index=True
-    )
+    db = SessionLocal()
+    try:
+        eq = get_equipment_by_name(db, equipment_name)
+        sp = None
+        for sp_obj in get_all_spare_parts(db):
+            if sp_obj.name == spare_part_name and sp_obj.equipment_id == eq.id:
+                sp = sp_obj
+                break
+        ws = None
+        for ws_obj in get_all_workshops(db):
+            if ws_obj.name == workshop_name:
+                ws = ws_obj
+                break
+        if eq and sp and ws:
+            rr = create_replacement_record(
+                db, eq.id, sp.id, ws.id, replacement_date, replacement_type, notes
+            )
+            new_row = pd.DataFrame(
+                {
+                    "id": [rr.id],
+                    "equipment_name": [equipment_name],
+                    "spare_part_name": [spare_part_name],
+                    "workshop_name": [workshop_name],
+                    "replacement_date": [replacement_date],
+                    "replacement_type": [replacement_type],
+                    "notes": [notes],
+                }
+            )
+            st.session_state.replacements_df = pd.concat(
+                [st.session_state.replacements_df, new_row], ignore_index=True
+            )
+    finally:
+        db.close()
 
 
 # Навигация
@@ -169,22 +337,63 @@ elif page == "Справочники":
         with st.expander("➕ Добавить оборудование"):
             with st.form("add_equipment_form"):
                 name = st.text_input("Наименование")
+                vin = st.text_input("VIN номер (опционально)")
                 qty_in_fleet = st.number_input(
                     "Количество в парке", min_value=1, value=1
                 )
                 submitted = st.form_submit_button("Добавить")
                 if submitted and name:
-                    add_equipment(name, qty_in_fleet)
+                    add_equipment(name, qty_in_fleet, vin if vin else None)
                     st.success("Оборудование добавлено!")
                     st.rerun()
 
         equipment_display_df = st.session_state.equipment_df.rename(
             columns={
                 "name": "Наименование",
+                "vin": "VIN",
                 "qty_in_fleet": "Количество в парке",
             }
         )
         st.dataframe(equipment_display_df, width="content")
+
+        # Выбор оборудования для просмотра замен
+        selected_equipment = st.selectbox(
+            "Выберите оборудование для просмотра замен:",
+            st.session_state.equipment_df["name"].tolist(),
+            key="equipment_replacements_select",
+        )
+
+        if selected_equipment:
+            db = SessionLocal()
+            try:
+                eq = get_equipment_by_name(db, selected_equipment)
+                if eq:
+                    replacements = get_replacement_records_by_equipment(db, eq.id)
+                    if replacements:
+                        replacements_df = pd.DataFrame(
+                            [
+                                {
+                                    "Дата замены": rr.replacement_date.strftime(
+                                        "%d.%m.%Y"
+                                    ),
+                                    "Запчасть": rr.spare_part.name,
+                                    "Мастерская": rr.workshop.name,
+                                    "Тип замены": get_replacement_type_display(
+                                        rr.replacement_type
+                                    ),
+                                    "Примечания": rr.notes or "",
+                                }
+                                for rr in replacements
+                            ]
+                        ).sort_values("Дата замены", ascending=False)
+                        st.subheader(f"История замен для {selected_equipment}")
+                        st.dataframe(replacements_df, width="content")
+                    else:
+                        st.info(
+                            f"Для оборудования {selected_equipment} нет записей о заменах"
+                        )
+            finally:
+                db.close()
 
     with tab2:
         st.subheader("Авторемонтные мастерские")

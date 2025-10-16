@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: gpmech
+      POSTGRES_USER: gpmech_user
+      POSTGRES_PASSWORD: gpmech_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gpmech_user -d gpmech"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    ports:
+      - "8501:8501"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://gpmech_user:gpmech_pass@postgres:5432/gpmech
+    volumes:
+      - .:/app
+
+volumes:
+  postgres_data:
