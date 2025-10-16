@@ -178,7 +178,7 @@ elif page == "Справочники":
                     "qty_in_fleet": "Количество в парке",
                 }
             )
-            st.dataframe(equipment_display_df, width="stretch")
+            st.dataframe(equipment_display_df, width="content")
 
         with col2:
             with st.expander("➕ Добавить оборудование"):
@@ -204,7 +204,7 @@ elif page == "Справочники":
                     "address": "Адрес",
                 }
             )
-            st.dataframe(workshops_display_df, width="stretch")
+            st.dataframe(workshops_display_df, width="content")
 
         with col2:
             with st.expander("➕ Добавить мастерскую"):
@@ -232,7 +232,7 @@ elif page == "Справочники":
                     "procurement_time_days": "Срок закупки (дни)",
                 }
             )
-            st.dataframe(spare_parts_display_df, width="stretch")
+            st.dataframe(spare_parts_display_df, width="content")
 
         with col2:
             with st.expander("➕ Добавить запчасть"):
@@ -284,7 +284,7 @@ elif page == "Учет замен":
                 "notes": "Примечания",
             }
         )
-        st.dataframe(replacements_display_df, width="stretch")
+        st.dataframe(replacements_display_df, width="content")
 
     with col2:
         with st.expander("➕ Добавить замену"):
@@ -349,10 +349,18 @@ elif page == "Анализ износа":
             st.subheader("Сводка по степени износа")
             for _, row in wear_summary.iterrows():
                 color = get_wear_color(row["wear_level"])
+                if row["wear_level"] == "green":
+                    description = "осталось более 25% от срока полезной эксплуатации"
+                elif row["wear_level"] == "yellow":
+                    description = "осталось менее 25% от срока полезной эксплуатации"
+                elif row["wear_level"] == "red":
+                    description = "осталось менее 10% от срока полезной эксплуатации"
+                else:
+                    description = ""
                 st.markdown(
                     f"""
-                <div style="background-color: {color}; padding: 10px; margin: 5px 0; border-radius: 5px; color: white;">
-                    <strong>{row['wear_level'].upper()}</strong>: {row['count']} запчастей
+                <div style="background-color: {color}; padding: 10px; margin: 5px 0; border-radius: 5px; color: white; display: inline-block; width: auto;">
+                    <strong>{row['wear_level'].upper()}</strong>: {row['count']} запчастей ({description})
                 </div>
                 """,
                     unsafe_allow_html=True,
@@ -398,7 +406,7 @@ elif page == "Анализ износа":
         styled_df = wear_display_df.style.map(
             color_wear_level, subset=["Степень износа"]
         )
-        st.dataframe(styled_df, width="stretch")
+        st.dataframe(styled_df, width="content")
 
         # Фильтр по оборудованию
         selected_equipment = st.selectbox(
@@ -423,7 +431,7 @@ elif page == "Анализ износа":
                 "procurement_time_days": "Время на закупку, дн.",
             }
         )
-        st.dataframe(filtered_display_df, width="stretch")
+        st.dataframe(filtered_display_df, width="content")
     else:
         st.info("Нет данных для анализа износа")
 
@@ -473,7 +481,7 @@ elif page == "План закупок":
                     "procurement_deadline": "Срок закупки",
                 }
             )
-            st.dataframe(procurement_display_df, width="stretch")
+            st.dataframe(procurement_display_df, width="content")
 
             # Группировка по датам
             procurement_plan = []
@@ -502,7 +510,7 @@ elif page == "План закупок":
                         "wear_level": "Срочность",
                     }
                 )
-                st.dataframe(plan_display_df, width="stretch")
+                st.dataframe(plan_display_df, width="content")
 
                 # Визуализация плана
                 fig = px.scatter(
