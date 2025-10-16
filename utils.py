@@ -136,8 +136,14 @@ def calculate_total_parts_needed(equipment_df, spare_parts_df, replacements_df):
             total_needed = qty_in_fleet * qty_per_equipment
 
             # Последние замены для этой запчасти в этом оборудовании
+            # Проверяем оба возможных названия столбца
+            equipment_col = (
+                "equipment_name"
+                if "equipment_name" in replacements_df.columns
+                else "equipment_model"
+            )
             part_replacements = replacements_df[
-                (replacements_df["equipment_name"] == equipment_name)
+                (replacements_df[equipment_col] == equipment_name)
                 & (replacements_df["spare_part_name"] == part_name)
             ].sort_values("replacement_date", ascending=False)
 
