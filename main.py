@@ -535,122 +535,112 @@ elif page == "Справочники":
             )
 
             if selected_equipment_model:
-                db = SessionLocal()
-                try:
-                    eq_model = get_equipment_model_by_name(db, selected_equipment_model)
-                    if eq_model:
-                        equipment_instances = get_equipment_by_model(db, eq_model.id)
-                        if equipment_instances:
-                            vin_df = pd.DataFrame(
-                                [{"VIN": eq.vin} for eq in equipment_instances]
+                if USE_DATABASE:
+                    db = SessionLocal()
+                    try:
+                        eq_model = get_equipment_model_by_name(
+                            db, selected_equipment_model
+                        )
+                        if eq_model:
+                            equipment_instances = get_equipment_by_model(
+                                db, eq_model.id
                             )
-
-                            # Управление экземплярами оборудования
-                            # Выбор VIN для редактирования/удаления
-                            if not vin_df.empty:
-                                selected_vin_for_edit = st.selectbox(
-                                    "Выберите VIN для редактирования/удаления:",
-                                    vin_df["VIN"].tolist(),
-                                    key="vin_edit_select",
+                            if equipment_instances:
+                                vin_df = pd.DataFrame(
+                                    [{"VIN": eq.vin} for eq in equipment_instances]
                                 )
+                    finally:
+                        db.close()
+                else:
+                    # Для режима без базы данных получаем VIN из replacements_df
+                    vin_df = pd.DataFrame(
+                        [
+                            {"VIN": vin}
+                            for vin in st.session_state.replacements_df[
+                                st.session_state.replacements_df["equipment_model"]
+                                == selected_equipment_model
+                            ]["equipment_vin"].unique()
+                        ]
+                    )
 
-                                col_edit_vin, col_delete_vin = st.columns(
-                                    2, border=True
-                                )
+                # Управление экземплярами оборудования
+                # Выбор VIN для редактирования/удаления
+                if not vin_df.empty:
+                    selected_vin_for_edit = st.selectbox(
+                        "Выберите VIN для редактирования/удаления:",
+                        vin_df["VIN"].tolist(),
+                        key="vin_edit_select",
+                    )
 
-                                with col_edit_vin:
-                                    if st.button(
-                                        "✏️ Редактировать VIN", key="edit_vin_btn"
-                                    ):
-                                        st.session_state.edit_vin_mode = True
-                                        st.session_state.selected_vin = (
-                                            selected_vin_for_edit
-                                        )
+                    col_edit_vin, col_delete_vin = st.columns(2, border=True)
 
-                                with col_delete_vin:
-                                    if st.button("🗑️ Удалить VIN", key="delete_vin_btn"):
-                                        if delete_equipment_instance(
-                                            selected_vin_for_edit
-                                        ):
-                                            st.success(
-                                                f"VIN '{selected_vin_for_edit}' удален!"
-                                            )
-                                            st.rerun()
-                                        else:
-                                            st.error("Ошибка при удалении VIN")
+                    with col_edit_vin:
+                        if st.button("✏️ Редактировать VIN", key="edit_vin_btn"):
+                            st.session_state.edit_vin_mode = True
+                            st.session_state.selected_vin = selected_vin_for_edit
 
-                                # Форма редактирования VIN
-                                if (
-                                    st.session_state.get("edit_vin_mode", False)
-                                    and st.session_state.get("selected_vin")
-                                    == selected_vin_for_edit
+                    with col_delete_vin:
+                        if st.button("🗑️ Удалить VIN", key="delete_vin_btn"):
+                            if delete_equipment_instance(selected_vin_for_edit):
+                                st.success(f"VIN '{selected_vin_for_edit}' удален!")
+                                st.rerun()
+                            else:
+                                st.error("Ошибка при удалении VIN")
+
+                    # Форма редактирования VIN
+                    if (
+                        st.session_state.get("edit_vin_mode", False)
+                        and st.session_state.get("selected_vin")
+                        == selected_vin_for_edit
+                    ):
+                        with st.form("edit_vin_form", width="content"):
+                            st.subheader(f"Редактирование VIN: {selected_vin_for_edit}")
+                            new_vin = st.text_input(
+                                "Новый VIN номер",
+                                value=selected_vin_for_edit,
+                            )
+                            new_model = st.selectbox(
+                                "Модель оборудования",
+                                st.session_state.equipment_df["name"].tolist(),
+                                index=st.session_state.equipment_df["name"]
+                                .tolist()
+                                .index(selected_equipment_model),
+                            )
+                            submitted_edit_vin = st.form_submit_button(
+                                "Сохранить изменения"
+                            )
+                            cancel_edit_vin = st.form_submit_button("Отмена")
+
+                            if submitted_edit_vin and new_vin:
+                                if update_equipment_instance(
+                                    selected_vin_for_edit,
+                                    new_vin,
+                                    new_model,
                                 ):
-                                    with st.form("edit_vin_form", width="content"):
-                                        st.subheader(
-                                            f"Редактирование VIN: {selected_vin_for_edit}"
-                                        )
-                                        new_vin = st.text_input(
-                                            "Новый VIN номер",
-                                            value=selected_vin_for_edit,
-                                        )
-                                        new_model = st.selectbox(
-                                            "Модель оборудования",
-                                            st.session_state.equipment_df[
-                                                "name"
-                                            ].tolist(),
-                                            index=st.session_state.equipment_df["name"]
-                                            .tolist()
-                                            .index(selected_equipment_model),
-                                        )
-                                        submitted_edit_vin = st.form_submit_button(
-                                            "Сохранить изменения"
-                                        )
-                                        cancel_edit_vin = st.form_submit_button(
-                                            "Отмена"
-                                        )
+                                    st.success("VIN обновлен!")
+                                    st.session_state.edit_vin_mode = False
+                                    st.rerun()
+                                else:
+                                    st.error("Ошибка при обновлении VIN")
+                            elif cancel_edit_vin:
+                                st.session_state.edit_vin_mode = False
+                                st.rerun()
 
-                                        if submitted_edit_vin and new_vin:
-                                            if update_equipment_instance(
-                                                selected_vin_for_edit,
-                                                new_vin,
-                                                new_model,
-                                            ):
-                                                st.success("VIN обновлен!")
-                                                st.session_state.edit_vin_mode = False
-                                                st.rerun()
-                                            else:
-                                                st.error("Ошибка при обновлении VIN")
-                                        elif cancel_edit_vin:
-                                            st.session_state.edit_vin_mode = False
-                                            st.rerun()
-
-                            with st.expander(
-                                "➕ Добавить VIN оборудования", width="stretch"
+                with st.expander("➕ Добавить VIN оборудования", width="stretch"):
+                    with st.form("add_equipment_instance_form", width="content"):
+                        vin_input = st.text_input("VIN номер")
+                        submitted_add = st.form_submit_button("Добавить")
+                        if submitted_add and vin_input:
+                            if add_equipment_instance(
+                                selected_equipment_model, vin_input
                             ):
-                                with st.form(
-                                    "add_equipment_instance_form", width="content"
-                                ):
-                                    vin_input = st.text_input("VIN номер")
-                                    submitted_add = st.form_submit_button("Добавить")
-                                    if submitted_add and vin_input:
-                                        if add_equipment_instance(
-                                            selected_equipment_model, vin_input
-                                        ):
-                                            st.success(
-                                                "Экземпляр оборудования добавлен!"
-                                            )
-                                            st.rerun()
-                                        else:
-                                            st.error("Ошибка при добавлении экземпляра")
+                                st.success("Экземпляр оборудования добавлен!")
+                                st.rerun()
+                            else:
+                                st.error("Ошибка при добавлении экземпляра")
 
-                            # st.subheader("VIN-номера", divider="gray")
-                            st.dataframe(vin_df, width="content")
-                        else:
-                            st.info("Нет экземпляров оборудования для этой модели")
-                    else:
-                        st.info("Модель не найдена")
-                finally:
-                    db.close()
+                # st.subheader("VIN-номера", divider="gray")
+                st.dataframe(vin_df, width="content")
             else:
                 st.info("Выберите модель оборудования для просмотра VIN")
 
@@ -665,43 +655,88 @@ elif page == "Справочники":
         )
 
         if selected_equipment_model_replacements:
-            db = SessionLocal()
-            try:
-                eq_model = get_equipment_model_by_name(
-                    db, selected_equipment_model_replacements
-                )
-                if eq_model:
-                    replacements = get_replacement_records_by_equipment_model(
-                        db, eq_model.id
+            if USE_DATABASE:
+                db = SessionLocal()
+                try:
+                    eq_model = get_equipment_model_by_name(
+                        db, selected_equipment_model_replacements
                     )
-                    if replacements:
-                        replacements_df = pd.DataFrame(
+                    if eq_model:
+                        replacements = get_replacement_records_by_equipment_model(
+                            db, eq_model.id
+                        )
+                        if replacements:
+                            replacements_df = pd.DataFrame(
+                                [
+                                    {
+                                        "VIN": rr.equipment.vin,
+                                        "Дата замены": rr.replacement_date.strftime(
+                                            "%d.%m.%Y"
+                                        ),
+                                        "Запчасть": rr.spare_part.name,
+                                        "Мастерская": rr.workshop.name,
+                                        "Тип замены": get_replacement_type_display(
+                                            rr.replacement_type
+                                        ),
+                                        "Примечания": rr.notes or "",
+                                    }
+                                    for rr in replacements
+                                ]
+                            ).sort_values("Дата замены", ascending=False)
+                            st.subheader(
+                                f"История замен для модели {selected_equipment_model_replacements}"
+                            )
+                            st.dataframe(replacements_df, width="content")
+                        else:
+                            st.info(
+                                f"Для модели оборудования {selected_equipment_model_replacements} нет записей о заменах"
+                            )
+                finally:
+                    db.close()
+            else:
+                # Для режима без базы данных фильтруем replacements_df
+                model_replacements = st.session_state.replacements_df[
+                    st.session_state.replacements_df["equipment_model"]
+                    == selected_equipment_model_replacements
+                ].copy()
+                if not model_replacements.empty:
+                    model_replacements["Дата замены"] = model_replacements[
+                        "replacement_date"
+                    ].dt.strftime("%d.%m.%Y")
+                    model_replacements["Тип замены"] = model_replacements[
+                        "replacement_type"
+                    ].apply(get_replacement_type_display)
+                    model_replacements["Примечания"] = model_replacements[
+                        "notes"
+                    ].fillna("")
+                    replacements_df = (
+                        model_replacements[
                             [
-                                {
-                                    "VIN": rr.equipment.vin,
-                                    "Дата замены": rr.replacement_date.strftime(
-                                        "%d.%m.%Y"
-                                    ),
-                                    "Запчасть": rr.spare_part.name,
-                                    "Мастерская": rr.workshop.name,
-                                    "Тип замены": get_replacement_type_display(
-                                        rr.replacement_type
-                                    ),
-                                    "Примечания": rr.notes or "",
-                                }
-                                for rr in replacements
+                                "equipment_vin",
+                                "Дата замены",
+                                "spare_part_name",
+                                "workshop_name",
+                                "Тип замены",
+                                "Примечания",
                             ]
-                        ).sort_values("Дата замены", ascending=False)
-                        st.subheader(
-                            f"История замен для модели {selected_equipment_model_replacements}"
+                        ]
+                        .rename(
+                            columns={
+                                "equipment_vin": "VIN",
+                                "spare_part_name": "Запчасть",
+                                "workshop_name": "Мастерская",
+                            }
                         )
-                        st.dataframe(replacements_df, width="content")
-                    else:
-                        st.info(
-                            f"Для модели оборудования {selected_equipment_model_replacements} нет записей о заменах"
-                        )
-            finally:
-                db.close()
+                        .sort_values("Дата замены", ascending=False)
+                    )
+                    st.subheader(
+                        f"История замен для модели {selected_equipment_model_replacements}"
+                    )
+                    st.dataframe(replacements_df, width="content")
+                else:
+                    st.info(
+                        f"Для модели оборудования {selected_equipment_model_replacements} нет записей о заменах"
+                    )
 
     with tab2:
         st.subheader(":blue[Авторемонтные мастерские]", divider="blue")
@@ -782,15 +817,26 @@ elif page == "Учет замен":
             )
 
             # Получаем список VIN для выбранной модели
-            db = SessionLocal()
-            vin_options = []
-            try:
-                eq_model = get_equipment_model_by_name(db, equipment_model_name)
-                if eq_model:
-                    equipment_instances = get_equipment_by_model(db, eq_model.id)
-                    vin_options = [eq.vin for eq in equipment_instances]
-            finally:
-                db.close()
+            if USE_DATABASE:
+                db = SessionLocal()
+                vin_options = []
+                try:
+                    eq_model = get_equipment_model_by_name(db, equipment_model_name)
+                    if eq_model:
+                        equipment_instances = get_equipment_by_model(db, eq_model.id)
+                        vin_options = [eq.vin for eq in equipment_instances]
+                finally:
+                    db.close()
+            else:
+                # Для режима без базы данных получаем VIN из replacements_df
+                vin_options = (
+                    st.session_state.replacements_df[
+                        st.session_state.replacements_df["equipment_model"]
+                        == equipment_model_name
+                    ]["equipment_vin"]
+                    .unique()
+                    .tolist()
+                )
 
             if vin_options:
                 equipment_vin = st.selectbox("VIN номер оборудования", vin_options)
