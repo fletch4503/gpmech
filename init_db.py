@@ -1,20 +1,35 @@
-from database import SessionLocal, create_tables
-from crud import (
-    create_equipment_model,
-    create_equipment,
-    create_workshop,
-    create_spare_part,
-    create_replacement_record,
-    get_equipment_model_by_name,
-    get_equipment_by_vin,
-    get_all_workshops,
-    get_all_spare_parts,
-)
-from models import generate_test_data
+import os
+from models import generate_test_data, create_dataframes
+
+# Проверяем, включена ли поддержка базы данных
+USE_DATABASE = os.getenv("USE_DATABASE", "true").lower() == "true"
+
+if USE_DATABASE:
+    from database import SessionLocal, create_tables
+    from crud import (
+        create_equipment_model,
+        create_equipment,
+        create_workshop,
+        create_spare_part,
+        create_replacement_record,
+        get_equipment_model_by_name,
+        get_equipment_by_vin,
+        get_all_workshops,
+        get_all_spare_parts,
+    )
+else:
+    # Заглушки для режима без базы данных
+    SessionLocal = None
+    create_tables = None
 
 
 def initialize_database():
     """Инициализация базы данных начальными данными"""
+    if not USE_DATABASE:
+        # Для режима без базы данных просто возвращаем тестовые данные
+        print("Инициализация в режиме без базы данных...")
+        return
+
     db = SessionLocal()
     try:
         # Создаем таблицы
