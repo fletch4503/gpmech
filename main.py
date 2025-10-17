@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import os
 from init_db import initialize_database
 from utils import (
     get_next_procurement_dates,
@@ -9,7 +10,7 @@ from utils import (
 )
 import plotly.express as px
 from datetime import datetime
-from database import SessionLocal, create_tables
+from database import SessionLocal, create_tables, USE_DATABASE
 from crud import (
     create_equipment_model,
     get_equipment_model,
@@ -34,8 +35,9 @@ from crud import (
 # Настройка страницы
 st.set_page_config(page_title="Журнал запасных частей", page_icon="🔧", layout="wide")
 
-# Инициализация базы данных
-create_tables()
+# Инициализация базы данных (только если используется БД)
+if USE_DATABASE:
+    create_tables()
 
 # Инициализация данных в session_state
 if "data_initialized" not in st.session_state:
