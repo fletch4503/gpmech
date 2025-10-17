@@ -104,8 +104,18 @@ cd gpmech
 git checkout dbadd
 ```
 
-2. Установите PostgreSQL и создайте базу данных:
+2. **Запустите PostgreSQL:**
 
+**Рекомендуемый способ (с помощью Docker Compose):**
+
+```bash
+# Запустите PostgreSQL с помощью docker-compose
+docker-compose up -d postgres
+```
+
+**Альтернативные способы:**
+
+Если у вас установлен PostgreSQL локально:
 ```bash
 # Создайте базу данных gpmech
 createdb gpmech
@@ -113,14 +123,10 @@ createdb gpmech
 # psql -c "CREATE DATABASE gpmech;"
 ```
 
-**Примечание:** Если у вас не установлен PostgreSQL локально, используйте Docker:
-
+Через Docker напрямую:
 ```bash
 # Запустите PostgreSQL в Docker
 docker run --name postgres-gpmech -e POSTGRES_DB=gpmech -e POSTGRES_USER=gpmech_user -e POSTGRES_PASSWORD=gpmech_pass -p 5432:5432 -d postgres:15
-
-# Или используйте docker-compose (рекомендуется):
-docker-compose up -d postgres
 ```
 
 3. Создайте виртуальное окружение:
