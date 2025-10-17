@@ -44,58 +44,83 @@ if "data_initialized" not in st.session_state:
     # Инициализируем базу данных начальными данными
     initialize_database()
 
-    db = SessionLocal()
-    try:
-        # Загружаем данные из БД в DataFrames
-        from crud import get_all_equipment_models
+    if USE_DATABASE:
+        db = SessionLocal()
+        try:
+            # Загружаем данные из БД в DataFrames
+            from crud import get_all_equipment_models
 
-        equipment_models = get_all_equipment_models(db)
-        workshops = get_all_workshops(db)
-        spare_parts = get_all_spare_parts(db)
-        replacements = get_all_replacement_records(db)
+            equipment_models = get_all_equipment_models(db)
+            workshops = get_all_workshops(db)
+            spare_parts = get_all_spare_parts(db)
+            replacements = get_all_replacement_records(db)
 
-        st.session_state.equipment_df = pd.DataFrame(
-            [
-                {
-                    "name": model.name,
-                    "qty_in_fleet": model.qty_in_fleet,
-                }
-                for model in equipment_models
-            ]
+            st.session_state.equipment_df = pd.DataFrame(
+                [
+                    {
+                        "name": model.name,
+                        "qty_in_fleet": model.qty_in_fleet,
+                    }
+                    for model in equipment_models
+                ]
+            )
+            st.session_state.workshops_df = pd.DataFrame(
+                [{"name": ws.name, "address": ws.address} for ws in workshops]
+            )
+            st.session_state.spare_parts_df = pd.DataFrame(
+                [
+                    {
+                        "name": sp.name,
+                        "useful_life_months": sp.useful_life_months,
+                        "parent_equipment": sp.equipment_model.name,
+                        "qty_per_equipment": sp.qty_per_equipment,
+                        "qty_in_stock": sp.qty_in_stock,
+                        "procurement_time_days": sp.procurement_time_days,
+                    }
+                    for sp in spare_parts
+                ]
+            )
+            st.session_state.replacements_df = pd.DataFrame(
+                [
+                    {
+                        "equipment_vin": rr.equipment.vin,
+                        "equipment_model": rr.equipment.model.name,
+                        "spare_part_name": rr.spare_part.name,
+                        "workshop_name": rr.workshop.name,
+                        "replacement_date": rr.replacement_date,
+                        "replacement_type": rr.replacement_type,
+                        "notes": rr.notes,
+                    }
+                    for rr in replacements
+                ]
+            )
+            st.session_state.data_initialized = True
+        finally:
+            db.close()
+    else:
+        # Для режима без базы данных используем тестовые данные напрямую
+        from models import generate_test_data, create_dataframes
+
+        (
+            equipment_models,
+            equipment_instances,
+            workshops,
+            spare_parts,
+            replacement_records,
+        ) = generate_test_data()
+        equipment_df, workshops_df, spare_parts_df, replacements_df = create_dataframes(
+            equipment_models,
+            equipment_instances,
+            workshops,
+            spare_parts,
+            replacement_records,
         )
-        st.session_state.workshops_df = pd.DataFrame(
-            [{"name": ws.name, "address": ws.address} for ws in workshops]
-        )
-        st.session_state.spare_parts_df = pd.DataFrame(
-            [
-                {
-                    "name": sp.name,
-                    "useful_life_months": sp.useful_life_months,
-                    "parent_equipment": sp.equipment_model.name,
-                    "qty_per_equipment": sp.qty_per_equipment,
-                    "qty_in_stock": sp.qty_in_stock,
-                    "procurement_time_days": sp.procurement_time_days,
-                }
-                for sp in spare_parts
-            ]
-        )
-        st.session_state.replacements_df = pd.DataFrame(
-            [
-                {
-                    "equipment_vin": rr.equipment.vin,
-                    "equipment_model": rr.equipment.model.name,
-                    "spare_part_name": rr.spare_part.name,
-                    "workshop_name": rr.workshop.name,
-                    "replacement_date": rr.replacement_date,
-                    "replacement_type": rr.replacement_type,
-                    "notes": rr.notes,
-                }
-                for rr in replacements
-            ]
-        )
+
+        st.session_state.equipment_df = equipment_df
+        st.session_state.workshops_df = workshops_df
+        st.session_state.spare_parts_df = spare_parts_df
+        st.session_state.replacements_df = replacements_df
         st.session_state.data_initialized = True
-    finally:
-        db.close()
 
 
 # Функции для работы с данными
