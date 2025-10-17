@@ -14,11 +14,16 @@ from datetime import datetime
 from database import SessionLocal, create_tables, get_db
 from crud import (
     create_equipment_model,
+    get_equipment_model,
     get_all_equipment_models,
     get_equipment_model_by_name,
+    update_equipment_model,
+    delete_equipment_model,
     create_equipment,
     get_equipment_by_vin,
     get_equipment_by_model,
+    update_equipment,
+    delete_equipment,
     create_workshop,
     get_all_workshops,
     create_spare_part,
@@ -56,7 +61,6 @@ if "data_initialized" not in st.session_state:
         st.session_state.equipment_df = pd.DataFrame(
             [
                 {
-                    "id": model.id,
                     "name": model.name,
                     "qty_in_fleet": model.qty_in_fleet,
                 }
@@ -64,12 +68,11 @@ if "data_initialized" not in st.session_state:
             ]
         )
         st.session_state.workshops_df = pd.DataFrame(
-            [{"id": ws.id, "name": ws.name, "address": ws.address} for ws in workshops]
+            [{"name": ws.name, "address": ws.address} for ws in workshops]
         )
         st.session_state.spare_parts_df = pd.DataFrame(
             [
                 {
-                    "id": sp.id,
                     "name": sp.name,
                     "useful_life_months": sp.useful_life_months,
                     "parent_equipment": sp.equipment_model.name,
@@ -83,7 +86,6 @@ if "data_initialized" not in st.session_state:
         st.session_state.replacements_df = pd.DataFrame(
             [
                 {
-                    "id": rr.id,
                     "equipment_vin": rr.equipment.vin,
                     "equipment_model": rr.equipment.model.name,
                     "spare_part_name": rr.spare_part.name,
@@ -112,7 +114,6 @@ def add_equipment_model(name, qty_in_fleet):
         model = create_equipment_model(db, name, qty_in_fleet)
         new_row = pd.DataFrame(
             {
-                "id": [model.id],
                 "name": [name],
                 "qty_in_fleet": [qty_in_fleet],
             }
@@ -124,6 +125,124 @@ def add_equipment_model(name, qty_in_fleet):
         db.close()
 
 
+def update_equipment_model_ui(model_name, new_name, new_qty_in_fleet):
+    """
+    Функция обновления модели оборудования.
+    model_name       - Текущее название модели
+    new_name         - Новое название модели
+    new_qty_in_fleet - Новое количество в парке
+    """
+    db = SessionLocal()
+    try:
+        model = get_equipment_model_by_name(db, model_name)
+        if model:
+            updated_model = update_equipment_model(
+                db, model.id, new_name, new_qty_in_fleet
+            )
+            if updated_model:
+                # Обновляем DataFrame
+                st.session_state.equipment_df.loc[
+                    st.session_state.equipment_df["name"] == model_name,
+                    ["name", "qty_in_fleet"],
+                ] = [new_name, new_qty_in_fleet]
+                return True
+    finally:
+        db.close()
+    return False
+
+
+def delete_equipment_model_ui(model_name):
+    """
+    Функция удаления модели оборудования.
+    model_name - Название модели для удаления
+    """
+    db = SessionLocal()
+    try:
+        model = get_equipment_model_by_name(db, model_name)
+        if model:
+            if delete_equipment_model(db, model.id):
+                # Удаляем из DataFrame
+                st.session_state.equipment_df = st.session_state.equipment_df[
+                    st.session_state.equipment_df["name"] != model_name
+                ].reset_index(drop=True)
+                return True
+    finally:
+        db.close()
+    return False
+
+
+def add_equipment_instance(model_name, vin):
+    """
+    Функция добавления экземпляра оборудования.
+    model_name - Название модели
+    vin        - VIN номер
+    """
+    db = SessionLocal()
+    try:
+        model = get_equipment_model_by_name(db, model_name)
+        if model:
+            equipment = create_equipment(db, model.id, vin)
+            # Обновляем qty_in_fleet в модели
+            update_equipment_model(db, model.id, qty_in_fleet=model.qty_in_fleet + 1)
+            # Обновляем DataFrame
+            st.session_state.equipment_df.loc[
+                st.session_state.equipment_df["name"] == model_name, "qty_in_fleet"
+            ] = (model.qty_in_fleet + 1)
+            return True
+    finally:
+        db.close()
+    return False
+
+
+def update_equipment_instance(old_vin, new_vin, new_model_name):
+    """
+    Функция обновления экземпляра оборудования.
+    old_vin       - Старый VIN
+    new_vin       - Новый VIN
+    new_model_name - Новое название модели
+    """
+    db = SessionLocal()
+    try:
+        equipment = get_equipment_by_vin(db, old_vin)
+        if equipment:
+            new_model = get_equipment_model_by_name(db, new_model_name)
+            if new_model:
+                updated_equipment = update_equipment(
+                    db, equipment.id, new_vin, new_model.id
+                )
+                if updated_equipment:
+                    return True
+    finally:
+        db.close()
+    return False
+
+
+def delete_equipment_instance(vin):
+    """
+    Функция удаления экземпляра оборудования.
+    vin - VIN номер для удаления
+    """
+    db = SessionLocal()
+    try:
+        equipment = get_equipment_by_vin(db, vin)
+        if equipment:
+            # Получаем модель для обновления счетчика
+            model = get_equipment_model(db, equipment.model_id)
+            if delete_equipment(db, equipment.id) and model:
+                # Обновляем qty_in_fleet
+                update_equipment_model(
+                    db, model.id, qty_in_fleet=model.qty_in_fleet - 1
+                )
+                # Обновляем DataFrame
+                st.session_state.equipment_df.loc[
+                    st.session_state.equipment_df["name"] == model.name, "qty_in_fleet"
+                ] = (model.qty_in_fleet - 1)
+                return True
+    finally:
+        db.close()
+    return False
+
+
 def add_workshop(name, address):
     """
     Функция добавления Мастерской.
@@ -133,7 +252,7 @@ def add_workshop(name, address):
     db = SessionLocal()
     try:
         ws = create_workshop(db, name, address)
-        new_row = pd.DataFrame({"id": [ws.id], "name": [name], "address": [address]})
+        new_row = pd.DataFrame({"name": [name], "address": [address]})
         st.session_state.workshops_df = pd.concat(
             [st.session_state.workshops_df, new_row], ignore_index=True
         )
@@ -173,7 +292,6 @@ def add_spare_part(
             )
             new_row = pd.DataFrame(
                 {
-                    "id": [sp.id],
                     "name": [name],
                     "useful_life_months": [useful_life_months],
                     "parent_equipment": [parent_equipment],
@@ -228,7 +346,6 @@ def add_replacement(
             )
             new_row = pd.DataFrame(
                 {
-                    "id": [rr.id],
                     "equipment_vin": [equipment_vin],
                     "equipment_model": [eq.model.name],
                     "spare_part_name": [spare_part_name],
@@ -295,38 +412,243 @@ elif page == "Справочники":
     tab1, tab2, tab3 = st.tabs(["Оборудование", "Мастерские", "Запчасти"])
 
     with tab1:
-        st.subheader("Оборудование")
-        with st.expander("➕ Добавить модель оборудования"):
-            with st.form("add_equipment_form"):
-                name = st.text_input("Наименование модели")
-                qty_in_fleet = st.number_input(
-                    "Количество в парке", min_value=1, value=1
+        st.subheader(":blue[Оборудование]", divider="blue")
+        # st.subheader("Оборудование", divider="blue")
+
+        # Создаем две колонки
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.subheader("Список моделей оборудования", divider="grey")
+
+            # Управление моделями оборудования
+            equipment_display_df = st.session_state.equipment_df.rename(
+                columns={
+                    "name": "Наименование модели",
+                    "qty_in_fleet": "Количество в парке",
+                }
+            )
+
+            # Выбор модели для редактирования/удаления
+            if not equipment_display_df.empty:
+                selected_model_for_edit = st.selectbox(
+                    "Выберите модель для редактирования/удаления:",
+                    equipment_display_df["Наименование модели"].tolist(),
+                    key="model_edit_select",
                 )
-                submitted = st.form_submit_button("Добавить")
-                if submitted and name:
-                    add_equipment_model(name, qty_in_fleet)
-                    st.success("Модель оборудования добавлена!")
-                    st.rerun()
 
-        equipment_display_df = st.session_state.equipment_df.rename(
-            columns={
-                "name": "Наименование модели",
-                "qty_in_fleet": "Количество в парке",
-            }
+                col_edit, col_delete = st.columns(2)
+
+                with col_edit:
+                    if st.button("✏️ Редактировать", key="edit_model_btn"):
+                        st.session_state.edit_model_mode = True
+                        st.session_state.selected_model = selected_model_for_edit
+
+                with col_delete:
+                    if st.button("🗑️ Удалить", key="delete_model_btn"):
+                        if delete_equipment_model_ui(selected_model_for_edit):
+                            st.success(f"Модель '{selected_model_for_edit}' удалена!")
+                            st.rerun()
+                        else:
+                            st.error("Ошибка при удалении модели")
+
+                # Форма редактирования модели
+                if (
+                    st.session_state.get("edit_model_mode", False)
+                    and st.session_state.get("selected_model")
+                    == selected_model_for_edit
+                ):
+                    current_data = st.session_state.equipment_df[
+                        st.session_state.equipment_df["name"] == selected_model_for_edit
+                    ].iloc[0]
+
+                    with st.form("edit_equipment_form", width="content"):
+                        st.subheader(
+                            f"Редактирование модели: {selected_model_for_edit}"
+                        )
+                        new_name = st.text_input(
+                            "Наименование модели", value=current_data["name"]
+                        )
+                        new_qty = st.number_input(
+                            "Количество в парке",
+                            min_value=0,
+                            value=int(current_data["qty_in_fleet"]),
+                        )
+                        submitted_edit = st.form_submit_button("Сохранить изменения")
+                        cancel_edit = st.form_submit_button("Отмена")
+
+                        if submitted_edit and new_name:
+                            if update_equipment_model_ui(
+                                selected_model_for_edit, new_name, new_qty
+                            ):
+                                st.success("Модель обновлена!")
+                                st.session_state.edit_model_mode = False
+                                st.rerun()
+                            else:
+                                st.error("Ошибка при обновлении модели")
+                        elif cancel_edit:
+                            st.session_state.edit_model_mode = False
+                            st.rerun()
+
+                with st.expander("➕ Добавить модель оборудования", width="stretch"):
+                    with st.form("add_equipment_form", width="content"):
+                        name = st.text_input("Наименование модели")
+                        qty_in_fleet = st.number_input(
+                            "Количество в парке", min_value=1, value=1
+                        )
+                        submitted = st.form_submit_button("Добавить")
+                        if submitted and name:
+                            add_equipment_model(name, qty_in_fleet)
+                            st.success("Модель оборудования добавлена!")
+                            st.rerun()
+
+            st.dataframe(equipment_display_df, width="content")
+
+        with col2:
+            st.subheader("Просмотр и редактирование модели", divider="gray")
+            # Выбор модели оборудования для просмотра VIN
+            selected_equipment_model = st.selectbox(
+                "Выберите модель оборудования для просмотра/добавления/редактирования VIN:",
+                st.session_state.equipment_df["name"].tolist(),
+                key="equipment_vin_select",
+            )
+
+            if selected_equipment_model:
+                db = SessionLocal()
+                try:
+                    eq_model = get_equipment_model_by_name(db, selected_equipment_model)
+                    if eq_model:
+                        equipment_instances = get_equipment_by_model(db, eq_model.id)
+                        if equipment_instances:
+                            vin_df = pd.DataFrame(
+                                [{"VIN": eq.vin} for eq in equipment_instances]
+                            )
+
+                            # Управление экземплярами оборудования
+                            # Выбор VIN для редактирования/удаления
+                            if not vin_df.empty:
+                                selected_vin_for_edit = st.selectbox(
+                                    "Выберите VIN для редактирования/удаления:",
+                                    vin_df["VIN"].tolist(),
+                                    key="vin_edit_select",
+                                )
+
+                                col_edit_vin, col_delete_vin = st.columns(
+                                    2, border=True
+                                )
+
+                                with col_edit_vin:
+                                    if st.button(
+                                        "✏️ Редактировать VIN", key="edit_vin_btn"
+                                    ):
+                                        st.session_state.edit_vin_mode = True
+                                        st.session_state.selected_vin = (
+                                            selected_vin_for_edit
+                                        )
+
+                                with col_delete_vin:
+                                    if st.button("🗑️ Удалить VIN", key="delete_vin_btn"):
+                                        if delete_equipment_instance(
+                                            selected_vin_for_edit
+                                        ):
+                                            st.success(
+                                                f"VIN '{selected_vin_for_edit}' удален!"
+                                            )
+                                            st.rerun()
+                                        else:
+                                            st.error("Ошибка при удалении VIN")
+
+                                # Форма редактирования VIN
+                                if (
+                                    st.session_state.get("edit_vin_mode", False)
+                                    and st.session_state.get("selected_vin")
+                                    == selected_vin_for_edit
+                                ):
+                                    with st.form("edit_vin_form", width="content"):
+                                        st.subheader(
+                                            f"Редактирование VIN: {selected_vin_for_edit}"
+                                        )
+                                        new_vin = st.text_input(
+                                            "Новый VIN номер",
+                                            value=selected_vin_for_edit,
+                                        )
+                                        new_model = st.selectbox(
+                                            "Модель оборудования",
+                                            st.session_state.equipment_df[
+                                                "name"
+                                            ].tolist(),
+                                            index=st.session_state.equipment_df["name"]
+                                            .tolist()
+                                            .index(selected_equipment_model),
+                                        )
+                                        submitted_edit_vin = st.form_submit_button(
+                                            "Сохранить изменения"
+                                        )
+                                        cancel_edit_vin = st.form_submit_button(
+                                            "Отмена"
+                                        )
+
+                                        if submitted_edit_vin and new_vin:
+                                            if update_equipment_instance(
+                                                selected_vin_for_edit,
+                                                new_vin,
+                                                new_model,
+                                            ):
+                                                st.success("VIN обновлен!")
+                                                st.session_state.edit_vin_mode = False
+                                                st.rerun()
+                                            else:
+                                                st.error("Ошибка при обновлении VIN")
+                                        elif cancel_edit_vin:
+                                            st.session_state.edit_vin_mode = False
+                                            st.rerun()
+
+                            with st.expander(
+                                "➕ Добавить VIN оборудования", width="stretch"
+                            ):
+                                with st.form(
+                                    "add_equipment_instance_form", width="content"
+                                ):
+                                    vin_input = st.text_input("VIN номер")
+                                    submitted_add = st.form_submit_button("Добавить")
+                                    if submitted_add and vin_input:
+                                        if add_equipment_instance(
+                                            selected_equipment_model, vin_input
+                                        ):
+                                            st.success(
+                                                "Экземпляр оборудования добавлен!"
+                                            )
+                                            st.rerun()
+                                        else:
+                                            st.error("Ошибка при добавлении экземпляра")
+
+                            # st.subheader("VIN-номера", divider="gray")
+                            st.dataframe(vin_df, width="content")
+                        else:
+                            st.info("Нет экземпляров оборудования для этой модели")
+                    else:
+                        st.info("Модель не найдена")
+                finally:
+                    db.close()
+            else:
+                st.info("Выберите модель оборудования для просмотра VIN")
+
+        st.subheader(
+            "История замен -> Выберите оборудование для просмотра", divider="gray"
         )
-        st.dataframe(equipment_display_df, width="content")
-
-        # Выбор модели оборудования для просмотра замен
-        selected_equipment_model = st.selectbox(
+        # Выбор модели оборудования для просмотра замен (ниже колонок)
+        selected_equipment_model_replacements = st.selectbox(
             "Выберите модель оборудования для просмотра замен:",
             st.session_state.equipment_df["name"].tolist(),
             key="equipment_replacements_select",
         )
 
-        if selected_equipment_model:
+        if selected_equipment_model_replacements:
             db = SessionLocal()
             try:
-                eq_model = get_equipment_model_by_name(db, selected_equipment_model)
+                eq_model = get_equipment_model_by_name(
+                    db, selected_equipment_model_replacements
+                )
                 if eq_model:
                     replacements = get_replacement_records_by_equipment_model(
                         db, eq_model.id
@@ -350,20 +672,20 @@ elif page == "Справочники":
                             ]
                         ).sort_values("Дата замены", ascending=False)
                         st.subheader(
-                            f"История замен для модели {selected_equipment_model}"
+                            f"История замен для модели {selected_equipment_model_replacements}"
                         )
                         st.dataframe(replacements_df, width="content")
                     else:
                         st.info(
-                            f"Для модели оборудования {selected_equipment_model} нет записей о заменах"
+                            f"Для модели оборудования {selected_equipment_model_replacements} нет записей о заменах"
                         )
             finally:
                 db.close()
 
     with tab2:
-        st.subheader("Авторемонтные мастерские")
+        st.subheader(":blue[Авторемонтные мастерские]", divider="blue")
         with st.expander("➕ Добавить мастерскую"):
-            with st.form("add_workshop_form"):
+            with st.form("add_workshop_form", width="content"):
                 name = st.text_input("Наименование")
                 address = st.text_input("Адрес")
                 submitted = st.form_submit_button("Добавить")
@@ -381,9 +703,9 @@ elif page == "Справочники":
         st.dataframe(workshops_display_df, width="content")
 
     with tab3:
-        st.subheader("Запчасти")
+        st.subheader(":blue[Запчасти]", divider="blue")
         with st.expander("➕ Добавить запчасть"):
-            with st.form("add_spare_part_form"):
+            with st.form("add_spare_part_form", width="content"):
                 name = st.text_input("Наименование")
                 useful_life_months = st.number_input(
                     "Срок полезного использования (месяцы)", min_value=1, value=12
@@ -432,7 +754,7 @@ elif page == "Учет замен":
 
     # Форма добавления замены сразу после заголовка
     with st.expander("➕ Добавить замену"):
-        with st.form("add_replacement_form"):
+        with st.form("add_replacement_form", width="content"):
             # Выбор модели оборудования
             equipment_model_name = st.selectbox(
                 "Модель оборудования", st.session_state.equipment_df["name"].tolist()
@@ -555,7 +877,7 @@ elif page == "Анализ износа":
         )
         st.plotly_chart(fig, config=dict(displayModeBar=False))
 
-        st.subheader("Детальный анализ")
+        st.subheader("Детальный анализ", divider="grey")
 
         # Добавляем цветовую индикацию
         def color_wear_level(val):

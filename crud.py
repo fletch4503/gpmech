@@ -25,6 +25,32 @@ def get_all_equipment_models(db: Session) -> List[EquipmentModel]:
     return db.query(EquipmentModel).all()
 
 
+def update_equipment_model(
+    db: Session,
+    model_id: int,
+    name: Optional[str] = None,
+    qty_in_fleet: Optional[int] = None,
+) -> Optional[EquipmentModel]:
+    model = db.query(EquipmentModel).filter(EquipmentModel.id == model_id).first()
+    if model:
+        if name is not None:
+            model.name = name
+        if qty_in_fleet is not None:
+            model.qty_in_fleet = qty_in_fleet
+        db.commit()
+        db.refresh(model)
+    return model
+
+
+def delete_equipment_model(db: Session, model_id: int) -> bool:
+    model = db.query(EquipmentModel).filter(EquipmentModel.id == model_id).first()
+    if model:
+        db.delete(model)
+        db.commit()
+        return True
+    return False
+
+
 # CRUD для Equipment (экземпляры)
 def create_equipment(db: Session, model_id: int, vin: str) -> Equipment:
     db_equipment = Equipment(model_id=model_id, vin=vin)
@@ -57,6 +83,23 @@ def delete_equipment(db: Session, equipment_id: int) -> bool:
         db.commit()
         return True
     return False
+
+
+def update_equipment(
+    db: Session,
+    equipment_id: int,
+    vin: Optional[str] = None,
+    model_id: Optional[int] = None,
+) -> Optional[Equipment]:
+    equipment = db.query(Equipment).filter(Equipment.id == equipment_id).first()
+    if equipment:
+        if vin is not None:
+            equipment.vin = vin
+        if model_id is not None:
+            equipment.model_id = model_id
+        db.commit()
+        db.refresh(equipment)
+    return equipment
 
 
 # CRUD для Workshop

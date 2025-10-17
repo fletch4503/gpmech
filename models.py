@@ -126,16 +126,17 @@ def generate_test_data():
     base_date = datetime.now() - timedelta(days=365)
 
     # Создаем замены для покрытия всех зон износа
+    # Теперь рассчитываем даты на основе срока службы запчастей и желаемого уровня износа
     wear_scenarios = [
-        # Зеленая зона - недавние замены
-        (0, 30),  # 0-30 дней назад
-        # Желтая зона - средний срок
-        (60, 120),  # 60-120 дней назад
-        # Красная зона - старые замены или отсутствие замен
-        (150, 365),  # 150-365 дней назад
+        # Зеленая зона - недавние замены (>25% срока осталось)
+        ("green", 15),
+        # Желтая зона - средний износ (10-25% срока осталось)
+        ("yellow", 12),
+        # Красная зона - критический износ (<10% срока осталось)
+        ("red", 18),
     ]
 
-    for scenario_days, count in [(0, 15), (60, 12), (150, 18)]:
+    for wear_level, count in wear_scenarios:
         for i in range(count):
             equipment = random.choice(equipment_instances)
             # Выбираем запчасть, подходящую для модели этого оборудования
@@ -145,10 +146,29 @@ def generate_test_data():
             if suitable_parts:
                 spare_part = random.choice(suitable_parts)
                 workshop = random.choice(workshops)
-                # Создаем дату замены в соответствующем диапазоне
-                days_ago = scenario_days + random.randint(
-                    0, min(30, 365 - scenario_days)
-                )
+
+                # Рассчитываем дату замены на основе желаемого уровня износа
+                useful_life_days = (
+                    spare_part.useful_life_months * 30.44
+                )  # Среднее дней в месяце
+
+                if wear_level == "green":
+                    # Зеленая зона: >25% срока осталось, значит прошло <75% срока
+                    max_days_passed = int(useful_life_days * 0.75)
+                    days_ago = random.randint(1, max_days_passed)
+                elif wear_level == "yellow":
+                    # Желтая зона: 10-25% срока осталось, значит прошло 75-90% срока
+                    min_days_passed = int(useful_life_days * 0.75)
+                    max_days_passed = int(useful_life_days * 0.9)
+                    days_ago = random.randint(min_days_passed, max_days_passed)
+                else:  # red
+                    # Красная зона: <10% срока осталось, значит прошло >90% срока
+                    min_days_passed = int(useful_life_days * 0.9)
+                    max_days_passed = int(
+                        useful_life_days * 1.2
+                    )  # До 120% для случаев превышения срока
+                    days_ago = random.randint(min_days_passed, max_days_passed)
+
                 replacement_date = datetime.now() - timedelta(days=days_ago)
                 replacement_type = random.choice(["repair", "scheduled", "unscheduled"])
                 notes = f"Замена запчасти {spare_part.name} в {equipment.model_name} (VIN: {equipment.vin})"

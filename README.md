@@ -66,7 +66,6 @@ uv venv
 3. Активируйте виртуальное окружение и установите зависимости:
 
 ```bash
-source .venv/bin/activate  # или .venv\Scripts\activate на Windows
 uv sync
 ```
 
