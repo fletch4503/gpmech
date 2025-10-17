@@ -113,6 +113,16 @@ createdb gpmech
 # psql -c "CREATE DATABASE gpmech;"
 ```
 
+**Примечание:** Если у вас не установлен PostgreSQL локально, используйте Docker:
+
+```bash
+# Запустите PostgreSQL в Docker
+docker run --name postgres-gpmech -e POSTGRES_DB=gpmech -e POSTGRES_USER=gpmech_user -e POSTGRES_PASSWORD=gpmech_pass -p 5432:5432 -d postgres:15
+
+# Или используйте docker-compose (рекомендуется):
+docker-compose up -d postgres
+```
+
 3. Создайте виртуальное окружение:
 
 ```bash
