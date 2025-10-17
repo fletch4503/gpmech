@@ -25,6 +25,8 @@ case $choice in
         read -p "Press Enter to continue..."
         ;;
     3)
+        echo "Создаем и запускаем контейнер в Docker..."
+        docker-compose up --build -d postgres
         echo "Запускаем приложение..."
         uv run streamlit run main.py
         read -p "Press Enter to continue..."
