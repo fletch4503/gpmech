@@ -225,6 +225,11 @@ def create_dataframes(
         [
             {
                 "equipment_vin": rr.equipment_name,  # Теперь это VIN
+                "equipment_model": (
+                    rr.equipment_name.split("VIN")[0]
+                    if "VIN" in rr.equipment_name
+                    else rr.equipment_name
+                ),  # Извлекаем модель из VIN
                 "spare_part_name": rr.spare_part_name,
                 "workshop_name": rr.workshop_name,
                 "replacement_date": rr.replacement_date,
