@@ -3,14 +3,18 @@ from datetime import datetime, timedelta
 from logly import logger
 from functools import wraps
 
-cust_color = {"INFO": "GREEN", "ERROR": "BRIGHT_RED"}
 
+cust_color = {"INFO": "GREEN", "ERROR": "BRIGHT_RED"}
 logger.configure(
     level="INFO",
     json=False,
     color=True,
+    # console=True,                 # Вывод в log-файлы
+    # console_levels=cons_levels,   # Вывод в log-файлы
     level_colors=cust_color,
+    # color_callback=custom_color,
     auto_sink=True,
+    # auto_sink_levels=a_sink_levels,
 )
 
 
@@ -109,7 +113,7 @@ def get_replacement_type_display(replacement_type):
     return types.get(replacement_type, replacement_type)
 
 
-# @funcenter
+@funcenter
 def calculate_total_parts_needed(equipment_df, spare_parts_df, replacements_df):
     """
     Расчет общего количества необходимых запчастей для всего парка.
@@ -136,8 +140,14 @@ def calculate_total_parts_needed(equipment_df, spare_parts_df, replacements_df):
             total_needed = qty_in_fleet * qty_per_equipment
 
             # Последние замены для этой запчасти в этом оборудовании
+            # Проверяем оба возможных названия столбца
+            equipment_col = (
+                "equipment_name"
+                if "equipment_name" in replacements_df.columns
+                else "equipment_model"
+            )
             part_replacements = replacements_df[
-                (replacements_df["equipment_name"] == equipment_name)
+                (replacements_df[equipment_col] == equipment_name)
                 & (replacements_df["spare_part_name"] == part_name)
             ].sort_values("replacement_date", ascending=False)
 
