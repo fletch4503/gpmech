@@ -123,7 +123,7 @@ def generate_test_data():
 
     # Записи о заменах для создания разных уровней износа
     replacement_records = []
-    base_date = datetime.now() - timedelta(days=365)
+    base_date = datetime.now() - timedelta(days=365)  # noqa: F841
 
     # Создаем замены для покрытия всех зон износа
     # Теперь рассчитываем даты на основе срока службы запчастей и желаемого уровня износа

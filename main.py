@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-from models import generate_test_data, create_dataframes
 from init_db import initialize_database
 from utils import (
     get_next_procurement_dates,
@@ -9,9 +8,8 @@ from utils import (
     calculate_total_parts_needed,
 )
 import plotly.express as px
-import plotly.graph_objects as go
 from datetime import datetime
-from database import SessionLocal, create_tables, get_db
+from database import SessionLocal, create_tables
 from crud import (
     create_equipment_model,
     get_equipment_model,
@@ -28,14 +26,10 @@ from crud import (
     get_all_workshops,
     create_spare_part,
     get_all_spare_parts,
-    get_spare_parts_by_equipment_model,
     create_replacement_record,
     get_all_replacement_records,
     get_replacement_records_by_equipment_model,
-    update_replacement_record,
-    delete_replacement_record,
 )
-from sqlalchemy.orm import Session
 
 # Настройка страницы
 st.set_page_config(page_title="Журнал запасных частей", page_icon="🔧", layout="wide")
@@ -111,7 +105,7 @@ def add_equipment_model(name, qty_in_fleet):
     """
     db = SessionLocal()
     try:
-        model = create_equipment_model(db, name, qty_in_fleet)
+        model = create_equipment_model(db, name, qty_in_fleet)  # noqa: F841
         new_row = pd.DataFrame(
             {
                 "name": [name],
@@ -181,7 +175,7 @@ def add_equipment_instance(model_name, vin):
     try:
         model = get_equipment_model_by_name(db, model_name)
         if model:
-            equipment = create_equipment(db, model.id, vin)
+            equipment = create_equipment(db, model.id, vin)  # noqa: F841
             # Обновляем qty_in_fleet в модели
             update_equipment_model(db, model.id, qty_in_fleet=model.qty_in_fleet + 1)
             # Обновляем DataFrame
@@ -251,7 +245,7 @@ def add_workshop(name, address):
     """
     db = SessionLocal()
     try:
-        ws = create_workshop(db, name, address)
+        ws = create_workshop(db, name, address)  # noqa: F841
         new_row = pd.DataFrame({"name": [name], "address": [address]})
         st.session_state.workshops_df = pd.concat(
             [st.session_state.workshops_df, new_row], ignore_index=True
@@ -281,7 +275,7 @@ def add_spare_part(
     try:
         eq_model = get_equipment_model_by_name(db, parent_equipment)
         if eq_model:
-            sp = create_spare_part(
+            sp = create_spare_part(  # noqa: F841
                 db,
                 name,
                 useful_life_months,
@@ -341,7 +335,7 @@ def add_replacement(
                 ws = ws_obj
                 break
         if eq and sp and ws:
-            rr = create_replacement_record(
+            rr = create_replacement_record(  # noqa: F841
                 db, eq.id, sp.id, ws.id, replacement_date, replacement_type, notes
             )
             new_row = pd.DataFrame(
